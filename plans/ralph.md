@@ -7,6 +7,7 @@ Execute these steps.
 5. Verify (by running tests).
 6. If complete: update PLAN to mark complete, commit.
 7. If not complete: update progress file and bail.
+8. If successfully completed a step commit and push to the `add-effects` branch
 
 ## Task Checklist
 
@@ -14,7 +15,7 @@ Tasks are ordered by dependency. Each is self-contained and testable in isolatio
 
 ### Phase 1: Syntax, Lexing, and Parsing
 
-- [ ] **1.1** Add `Effect`, `Handle`, and `With` tokens to the lexer (`compiler-core/src/parse/lexer.rs`)
+- [x] **1.1** Add `Effect`, `Handle`, and `With` tokens to the lexer (`compiler-core/src/parse/lexer.rs`) — progress: `plans/add-effects/LEXER_TOKENS.md`
 - [ ] **1.2a** Add `EffectDefinition` AST node (name, type params, operations with arg/return types) to `compiler-core/src/ast.rs`
 - [ ] **1.2b** Add `HandleExpression` AST node (computation, initial state, effect clauses, return clause) to `compiler-core/src/ast.rs`
 - [ ] **1.3a** Update top-level parser to parse `effect` blocks into `EffectDefinition` nodes

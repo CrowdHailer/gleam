@@ -512,8 +512,10 @@ utf16_codepoint, utf32_codepoint, signed, unsigned, big, little, native, size, u
                     | Token::Delegate
                     | Token::Derive
                     | Token::Echo
+                    | Token::Effect
                     | Token::Else
                     | Token::Fn
+                    | Token::Handle
                     | Token::If
                     | Token::Implement
                     | Token::Import
@@ -525,7 +527,8 @@ utf16_codepoint, utf32_codepoint, signed, unsigned, big, little, native, size, u
                     | Token::Test
                     | Token::Todo
                     | Token::Type
-                    | Token::Use => token.to_string(),
+                    | Token::Use
+                    | Token::With => token.to_string(),
                 };
 
                 let mut messages = std::iter::once(format!("Found {found}, expected one of: "))

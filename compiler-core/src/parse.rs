@@ -4090,8 +4090,10 @@ functions are declared separately from types.";
                 | Token::Delegate
                 | Token::Derive
                 | Token::Echo
+                | Token::Effect
                 | Token::Else
                 | Token::Fn
+                | Token::Handle
                 | Token::If
                 | Token::Implement
                 | Token::Import
@@ -4103,7 +4105,8 @@ functions are declared separately from types.";
                 | Token::Test
                 | Token::Todo
                 | Token::Type
-                | Token::Use => parse_error(ParseErrorType::ExpectedName, SrcSpan { start, end }),
+                | Token::Use
+                | Token::With => parse_error(ParseErrorType::ExpectedName, SrcSpan { start, end }),
             },
             None => parse_error(ParseErrorType::UnexpectedEof, SrcSpan { start: 0, end: 0 }),
         }
@@ -4176,8 +4179,10 @@ functions are declared separately from types.";
                 | Token::Delegate
                 | Token::Derive
                 | Token::Echo
+                | Token::Effect
                 | Token::Else
                 | Token::Fn
+                | Token::Handle
                 | Token::If
                 | Token::Implement
                 | Token::Import
@@ -4189,7 +4194,8 @@ functions are declared separately from types.";
                 | Token::Test
                 | Token::Todo
                 | Token::Type
-                | Token::Use => parse_error(ParseErrorType::ExpectedUpName, SrcSpan { start, end }),
+                | Token::Use
+                | Token::With => parse_error(ParseErrorType::ExpectedUpName, SrcSpan { start, end }),
             },
             None => parse_error(ParseErrorType::UnexpectedEof, SrcSpan { start: 0, end: 0 }),
         }
@@ -4718,8 +4724,10 @@ fn tok_to_binop(t: &Token) -> Option<BinOp> {
         | Token::Delegate
         | Token::Derive
         | Token::Echo
+        | Token::Effect
         | Token::Else
         | Token::Fn
+        | Token::Handle
         | Token::If
         | Token::Implement
         | Token::Import
@@ -4731,7 +4739,8 @@ fn tok_to_binop(t: &Token) -> Option<BinOp> {
         | Token::Test
         | Token::Todo
         | Token::Type
-        | Token::Use => None,
+        | Token::Use
+        | Token::With => None,
     }
 }
 
@@ -4798,8 +4807,10 @@ fn token_to_bit_array_size_operator(t: &Token) -> Option<IntOperator> {
         | Token::Delegate
         | Token::Derive
         | Token::Echo
+        | Token::Effect
         | Token::Else
         | Token::Fn
+        | Token::Handle
         | Token::If
         | Token::Implement
         | Token::Import
@@ -4811,7 +4822,8 @@ fn token_to_bit_array_size_operator(t: &Token) -> Option<IntOperator> {
         | Token::Test
         | Token::Todo
         | Token::Type
-        | Token::Use => None,
+        | Token::Use
+        | Token::With => None,
     }
 }
 

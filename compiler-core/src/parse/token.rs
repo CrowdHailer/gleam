@@ -91,8 +91,10 @@ pub enum Token {
     Delegate,
     Derive,
     Echo,
+    Effect,
     Else,
     Fn,
+    Handle,
     If,
     Implement,
     Import,
@@ -105,6 +107,7 @@ pub enum Token {
     Todo,
     Type,
     Use,
+    With,
 }
 
 impl Token {
@@ -170,8 +173,10 @@ impl Token {
             | Self::Delegate
             | Self::Derive
             | Self::Echo
+            | Self::Effect
             | Self::Else
             | Self::Fn
+            | Self::Handle
             | Self::If
             | Self::Implement
             | Self::Import
@@ -183,7 +188,8 @@ impl Token {
             | Self::Test
             | Self::Todo
             | Self::Type
-            | Self::Use => None,
+            | Self::Use
+            | Self::With => None,
         }
     }
 
@@ -206,11 +212,14 @@ impl Token {
             | Token::Delegate
             | Token::Derive
             | Token::Echo
+            | Token::Effect
             | Token::Else
+            | Token::Handle
             | Token::Implement
             | Token::Macro
             | Token::Panic
-            | Token::Test => true,
+            | Token::Test
+            | Token::With => true,
 
             Token::Name { .. }
             | Token::UpName { .. }
@@ -302,12 +311,14 @@ impl fmt::Display for Token {
             Token::Dot => ".",
             Token::DotDot => "..",
             Token::Echo => "echo",
+            Token::Effect => "effect",
             Token::Else => "else",
             Token::NewLine => "NEWLINE",
             Token::EndOfFile => "EOF",
             Token::Equal => "=",
             Token::EqualEqual => "==",
             Token::Fn => "fn",
+            Token::Handle => "handle",
             Token::Greater => ">",
             Token::GreaterDot => ">.",
             Token::GreaterEqual => ">=",
@@ -351,6 +362,7 @@ impl fmt::Display for Token {
             Token::Todo => "todo",
             Token::Type => "type",
             Token::Use => "use",
+            Token::With => "with",
             Token::Vbar => "|",
             Token::VbarVbar => "||",
         };

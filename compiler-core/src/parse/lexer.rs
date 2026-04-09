@@ -31,8 +31,10 @@ pub fn string_to_keyword(word: &str) -> Option<Token> {
         "delegate" => Some(Token::Delegate),
         "derive" => Some(Token::Derive),
         "echo" => Some(Token::Echo),
+        "effect" => Some(Token::Effect),
         "else" => Some(Token::Else),
         "fn" => Some(Token::Fn),
+        "handle" => Some(Token::Handle),
         "if" => Some(Token::If),
         "implement" => Some(Token::Implement),
         "import" => Some(Token::Import),
@@ -45,6 +47,7 @@ pub fn string_to_keyword(word: &str) -> Option<Token> {
         "todo" => Some(Token::Todo),
         "type" => Some(Token::Type),
         "use" => Some(Token::Use),
+        "with" => Some(Token::With),
         _ => None,
     }
 }
