@@ -1245,6 +1245,76 @@ impl EffectDefinition {
     }
 }
 
+/// A single handler clause in a `handle` expression, matching one effect operation.
+///
+/// # Example
+///
+/// ```gleam
+/// handle fetch() with Nil {
+///   Http.Get(url, resume) -> ...  // <- this is one EffectClause
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EffectClause {
+    pub location: SrcSpan,
+    /// The effect name, e.g. `Http` in `Http.Get(url, resume) -> ...`
+    pub effect_name: EcoString,
+    pub effect_name_location: SrcSpan,
+    /// The operation name, e.g. `Get` in `Http.Get(url, resume) -> ...`
+    pub operation_name: EcoString,
+    pub operation_name_location: SrcSpan,
+    /// Variable names bound to the operation's arguments.
+    pub arguments: Vec<SpannedString>,
+    /// Variable name bound to the resume continuation.
+    pub resume: SpannedString,
+    /// The clause body.
+    pub body: UntypedExpr,
+}
+
+/// The mandatory `Return` clause in a `handle` expression, handling the final value.
+///
+/// # Example
+///
+/// ```gleam
+/// handle fetch() with Nil {
+///   Http.Get(url, resume) -> ...
+///   Return(value) -> value  // <- this is the EffectReturnClause
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EffectReturnClause {
+    pub location: SrcSpan,
+    /// Variable name bound to the final return value.
+    pub value: SpannedString,
+    /// The clause body.
+    pub body: UntypedExpr,
+}
+
+/// The `handle computation() with state { ... }` expression node.
+///
+/// # Example
+///
+/// ```gleam
+/// handle fetch() with Nil {
+///   Http.Get(url, resume) -> resume("response", Nil)
+///   Return(value) -> value
+/// }
+/// ```
+///
+/// NOT yet a variant of `UntypedExpr` — that is part of task 1.3b (parser integration).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HandleExpression {
+    pub location: SrcSpan,
+    /// The computation expression being handled.
+    pub computation: Box<UntypedExpr>,
+    /// The initial state expression passed to handlers.
+    pub initial_state: Box<UntypedExpr>,
+    /// The handler clauses for each effect operation.
+    pub effect_clauses: Vec<EffectClause>,
+    /// The mandatory return clause.
+    pub return_clause: Box<EffectReturnClause>,
+}
+
 pub type UntypedDefinition = Definition<(), UntypedExpr, (), ()>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
