@@ -1,0 +1,10 @@
+{
+  "enabledPlugins": {
+    "ralph-wiggum@claude-code-plugins": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(/home/agent/.claude/plugins/cache/claude-code-plugins/ralph-wiggum/**)"
+    ]
+  }
+}
