@@ -109,6 +109,18 @@ Untyped AST ←──── Dependency sorter ────→ Module metadata
 
 Optional: `watchexec` (for `*-watch` targets), `wasm-pack` (for WASM build), Docker (cross-compilation).
 
+## Git / SSH
+
+Pushing to GitHub requires the deploy key at `~/.ssh/gleam_deploy_key`. If push fails with a permission denied error, ensure `~/.ssh/config` contains:
+
+```
+Host github.com
+  IdentityFile ~/.ssh/gleam_deploy_key
+  IdentitiesOnly yes
+```
+
+Then `git push` will work normally.
+
 ## Key Docs
 
 - `docs/compiler/README.md` — Detailed architecture and compilation flow
