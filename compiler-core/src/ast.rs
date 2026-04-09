@@ -1195,6 +1195,56 @@ impl TypedTypeAlias {
     }
 }
 
+/// A single operation declared inside an `effect` block.
+///
+/// # Example
+///
+/// ```gleam
+/// effect Store(a) {
+///   Get() -> a       // <- this line is one EffectOperation
+///   Set(a) -> Nil    // <- this line is another
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EffectOperation {
+    pub location: SrcSpan,
+    pub name: EcoString,
+    pub name_location: SrcSpan,
+    /// The type annotations for the operation's arguments.
+    pub arguments: Vec<TypeAst>,
+    /// The type annotation for the value the operation resolves to (the resume value).
+    pub return_type: TypeAst,
+}
+
+/// A top-level effect definition.
+///
+/// # Example
+///
+/// ```gleam
+/// pub effect Store(a) {
+///   Get() -> a
+///   Set(a) -> Nil
+/// }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EffectDefinition {
+    pub location: SrcSpan,
+    pub end_position: u32,
+    pub name: EcoString,
+    pub name_location: SrcSpan,
+    pub publicity: Publicity,
+    /// The names of the type parameters, e.g. `a` in `effect Store(a)`.
+    pub parameters: Vec<SpannedString>,
+    pub operations: Vec<EffectOperation>,
+    pub documentation: Option<(u32, EcoString)>,
+}
+
+impl EffectDefinition {
+    pub fn full_location(&self) -> SrcSpan {
+        SrcSpan::new(self.location.start, self.end_position)
+    }
+}
+
 pub type UntypedDefinition = Definition<(), UntypedExpr, (), ()>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
