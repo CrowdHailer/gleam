@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/erlang/tests/echo.rs
 expression: "\npub fn main() {\n  [1, 2, 3]\n  |> echo\n  |> wibble\n}\n\npub fn wibble(n) { n }\n"
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 
@@ -20,7 +21,7 @@ pub fn wibble(n) { n }
 -export([wibble/1, main/0]).
 
 -file("project/test/my/mod.gleam", 8).
--spec wibble(J) -> J.
+-spec wibble(K) -> K.
 wibble(N) ->
     N.
 

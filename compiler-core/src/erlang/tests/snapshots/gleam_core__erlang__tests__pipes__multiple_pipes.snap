@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/erlang/tests/pipes.rs
 expression: "\npub fn main() {\n  1 |> x |> x\n  2 |> x |> x\n}\n\nfn x(x) { x }\n"
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 
@@ -19,7 +20,7 @@ fn x(x) { x }
 -export([main/0]).
 
 -file("project/test/my/mod.gleam", 7).
--spec x(J) -> J.
+-spec x(K) -> K.
 x(X) ->
     X.
 

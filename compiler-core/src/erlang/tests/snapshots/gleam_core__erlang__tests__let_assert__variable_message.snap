@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/erlang/tests/let_assert.rs
 expression: "\npub fn expect(value, message) {\n  let assert Ok(inner) = value as message\n  inner\n}\n"
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 
@@ -17,7 +18,7 @@ pub fn expect(value, message) {
 -export([expect/2]).
 
 -file("project/test/my/mod.gleam", 2).
--spec expect({ok, L} | {error, any()}, binary()) -> L.
+-spec expect({ok, M} | {error, any()}, binary()) -> M.
 expect(Value, Message) ->
     Inner@1 = case Value of
         {ok, Inner} -> Inner;

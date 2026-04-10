@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/erlang/tests/bit_arrays.rs
 expression: "\npub fn main() {\n  <<0xAE:size(5 |> identity)>>\n}\n\nfn identity(x) {\n  x\n}\n"
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 
@@ -20,7 +21,7 @@ fn identity(x) {
 -export([main/0]).
 
 -file("project/test/my/mod.gleam", 6).
--spec identity(J) -> J.
+-spec identity(K) -> K.
 identity(X) ->
     X.
 

@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/javascript/tests/generics.rs
 expression: "pub fn map(result, fun) {\n            case result {\n              Ok(a) -> Ok(fun(a))\n              Error(e) -> Error(e)\n            }\n          }"
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 pub fn map(result, fun) {
@@ -13,7 +14,7 @@ pub fn map(result, fun) {
 ----- TYPESCRIPT DEFINITIONS
 import type * as _ from "../gleam.d.mts";
 
-export function map<S, T, V>(result: _.Result<T, S>, fun: (x0: T) => V): _.Result<
-  V,
-  S
+export function map<T, U, W>(result: _.Result<U, T>, fun: (x0: U) => W): _.Result<
+  W,
+  T
 >;

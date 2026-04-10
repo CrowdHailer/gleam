@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/erlang/tests/use_.rs
 expression: "\npub fn main() {\n  use <- pair()\n  123\n}\n\nfn pair(f) {\n  let x = f()\n  #(x, x)\n}\n"
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 
@@ -22,7 +23,7 @@ fn pair(f) {
 -export([main/0]).
 
 -file("project/test/my/mod.gleam", 7).
--spec pair(fun(() -> L)) -> {L, L}.
+-spec pair(fun(() -> N)) -> {N, N}.
 pair(F) ->
     X = F(),
     {X, X}.

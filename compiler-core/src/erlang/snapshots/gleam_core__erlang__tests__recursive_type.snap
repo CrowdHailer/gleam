@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/erlang/tests.rs
 expression: "\nfn id(x) {\n  x\n}\n\npub fn main() {\n  id(id)\n}\n"
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 
@@ -25,6 +26,6 @@ id(X) ->
     X.
 
 -file("project/test/my/mod.gleam", 6).
--spec main() -> fun((M) -> M).
+-spec main() -> fun((O) -> O).
 main() ->
     id(fun id/1).

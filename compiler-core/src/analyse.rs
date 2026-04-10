@@ -752,8 +752,11 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
             self.track_feature_usage(FeatureKind::AtInJavascriptModules, *location)
         }
 
-        // Assert that the inferred type matches the type of any recursive call
-        if let Err(error) = unify(preregistered_type.clone(), type_) {
+        // Assert that the inferred type matches the type of any recursive call.
+        // We clone `type_` here so it remains available to register back into
+        // scope below — `preregistered_type` has an empty effect row and must
+        // not be used for the final registration.
+        if let Err(error) = unify(preregistered_type.clone(), type_.clone()) {
             self.problems.error(convert_unify_error(error, location));
         }
 
@@ -795,10 +798,12 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
             purity,
         };
 
+        // Register with the inferred type (which carries the correct effect row)
+        // rather than the preregistered type (which always has an empty row).
         environment.insert_variable(
             name.clone(),
             variant,
-            preregistered_type.clone(),
+            type_,
             publicity,
             deprecation.clone(),
         );
@@ -1651,7 +1656,15 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
                 }
             };
 
-        let type_ = fn_(arguments_types, return_type);
+        // Use an open effect row for the pre-registered type so that the later
+        // `unify(preregistered_type, inferred_type)` succeeds even when the
+        // function body turns out to perform effects.  The final type (with the
+        // concrete closed effect row) is written back into scope after inference.
+        let open_effect_row = EffectRow {
+            effects: vec![],
+            var: Some(environment.next_uid()),
+        };
+        let type_ = fn_with_effects(arguments_types, return_type, open_effect_row);
         let _ = self.hydrators.insert(name.clone(), hydrator);
 
         let variant = ValueConstructorVariant::ModuleFn {

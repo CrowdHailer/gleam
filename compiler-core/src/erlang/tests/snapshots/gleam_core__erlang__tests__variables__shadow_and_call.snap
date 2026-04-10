@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/erlang/tests/variables.rs
 expression: "\npub fn main(x) {\n  fn(x) { x }(x)\n}\n"
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 
@@ -16,6 +17,6 @@ pub fn main(x) {
 -export([main/1]).
 
 -file("project/test/my/mod.gleam", 2).
--spec main(K) -> K.
+-spec main(L) -> L.
 main(X) ->
     X.

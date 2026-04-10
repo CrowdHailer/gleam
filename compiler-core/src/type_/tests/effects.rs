@@ -1,4 +1,8 @@
-use crate::assert_module_infer;
+use crate::{
+    assert_module_infer,
+    type_::Type,
+    type_::tests::compile_module,
+};
 
 /// Operations of a pub effect definition are registered as public callable values.
 #[test]
@@ -56,4 +60,114 @@ pub fn fetch() -> Int {
 "#,
         vec![("Get", "fn() -> a"), ("fetch", "fn() -> Int")]
     );
+}
+
+/// When a function calls an effect operation, the effect is added to the
+/// enclosing function's effect row.
+#[test]
+fn effect_propagates_to_enclosing_function_row() {
+    let src = r#"
+pub effect Store(a) {
+  Get() -> a
+}
+
+pub fn fetch() -> Int {
+  Get()
+}
+"#;
+    let module = compile_module("test_module", src, None, vec![])
+        .into_result()
+        .expect("should infer successfully");
+
+    let fetch_type = module
+        .type_info
+        .values
+        .get("fetch")
+        .expect("fetch should be registered")
+        .type_
+        .clone();
+
+    match fetch_type.as_ref() {
+        Type::Fn { effects, .. } => {
+            assert!(
+                effects.effects.iter().any(|e| e.name == "Store"),
+                "expected Store in effect row, got {:?}",
+                effects
+            );
+        }
+        other => panic!("expected Fn type, got {:?}", other),
+    }
+}
+
+/// Effect propagates transitively: a function calling an effectful function
+/// also picks up those effects.
+#[test]
+fn effect_propagates_transitively() {
+    let src = r#"
+pub effect Store(a) {
+  Get() -> a
+}
+
+pub fn fetch() -> Int {
+  Get()
+}
+
+pub fn indirect() -> Int {
+  fetch()
+}
+"#;
+    let module = compile_module("test_module", src, None, vec![])
+        .into_result()
+        .expect("should infer successfully");
+
+    let indirect_type = module
+        .type_info
+        .values
+        .get("indirect")
+        .expect("indirect should be registered")
+        .type_
+        .clone();
+
+    match indirect_type.as_ref() {
+        Type::Fn { effects, .. } => {
+            assert!(
+                effects.effects.iter().any(|e| e.name == "Store"),
+                "expected Store in effect row, got {:?}",
+                effects
+            );
+        }
+        other => panic!("expected Fn type, got {:?}", other),
+    }
+}
+
+/// A function that performs no effects has an empty effect row.
+#[test]
+fn pure_function_has_empty_effect_row() {
+    let src = r#"
+pub fn add(x: Int, y: Int) -> Int {
+  x + y
+}
+"#;
+    let module = compile_module("test_module", src, None, vec![])
+        .into_result()
+        .expect("should infer successfully");
+
+    let add_type = module
+        .type_info
+        .values
+        .get("add")
+        .expect("add should be registered")
+        .type_
+        .clone();
+
+    match add_type.as_ref() {
+        Type::Fn { effects, .. } => {
+            assert!(
+                effects.is_empty(),
+                "expected empty effect row for pure function, got {:?}",
+                effects
+            );
+        }
+        other => panic!("expected Fn type, got {:?}", other),
+    }
 }

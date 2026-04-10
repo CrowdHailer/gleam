@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/erlang/tests/pipes.rs
 expression: "\npub fn main() {\n  123\n  |> two(\n    1 |> two(2),\n    _,\n  )\n}\n\npub fn two(a, b) {\n  a\n}\n"
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 
@@ -24,7 +25,7 @@ pub fn two(a, b) {
 -export([two/2, main/0]).
 
 -file("project/test/my/mod.gleam", 10).
--spec two(J, any()) -> J.
+-spec two(K, any()) -> K.
 two(A, B) ->
     A.
 

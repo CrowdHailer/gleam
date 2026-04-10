@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/erlang/tests.rs
 expression: "\npub fn factory(f, i) {\n  f(i)\n}\n\npub type Box {\n  Box(i: Int)\n}\n\npub fn main() {\n  factory(Box, 0)\n}\n"
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 
@@ -27,7 +28,7 @@ pub fn main() {
 -type box() :: {box, integer()}.
 
 -file("project/test/my/mod.gleam", 2).
--spec factory(fun((J) -> N), J) -> N.
+-spec factory(fun((J) -> P), J) -> P.
 factory(F, I) ->
     F(I).
 

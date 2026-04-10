@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/erlang/tests/pipes.rs
 expression: "pub fn x(f) {\n  [\n    1 |> f\n  ]\n}"
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 pub fn x(f) {
@@ -16,7 +17,7 @@ pub fn x(f) {
 -export([x/1]).
 
 -file("project/test/my/mod.gleam", 1).
--spec x(fun((integer()) -> L)) -> list(L).
+-spec x(fun((integer()) -> M)) -> list(M).
 x(F) ->
     [begin
             _pipe = 1,

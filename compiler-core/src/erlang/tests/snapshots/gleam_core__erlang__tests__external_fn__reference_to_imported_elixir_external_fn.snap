@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/erlang/tests/external_fn.rs
 expression: "import my_app\npub fn main() {\n  let x = my_app.run\n  id(my_app.run)\n}\nfn id(x) { x }\n"
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 import my_app
@@ -18,7 +19,7 @@ fn id(x) { x }
 -export([main/0]).
 
 -file("project/test/my/mod.gleam", 6).
--spec id(K) -> K.
+-spec id(M) -> M.
 id(X) ->
     X.
 

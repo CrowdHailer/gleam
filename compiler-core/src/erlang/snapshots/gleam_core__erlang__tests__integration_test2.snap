@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/erlang/tests.rs
 expression: "pub fn second(list) { case list { [x, y] -> y z -> 1 } }\npub fn tail(list) { case list { [x, ..xs] -> xs z -> list } }\n            "
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 pub fn second(list) { case list { [x, y] -> y z -> 1 } }
@@ -25,7 +26,7 @@ second(List) ->
     end.
 
 -file("project/test/my/mod.gleam", 2).
--spec tail(list(P)) -> list(P).
+-spec tail(list(R)) -> list(R).
 tail(List) ->
     case List of
         [X | Xs] ->

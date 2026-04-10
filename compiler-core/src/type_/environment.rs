@@ -666,13 +666,16 @@ impl Environment<'_> {
             }
 
             Type::Fn {
-                arguments, return_, ..
-            } => fn_(
+                arguments,
+                return_,
+                effects,
+            } => fn_with_effects(
                 arguments
                     .iter()
                     .map(|type_| self.instantiate(type_.clone(), ids, hydrator))
                     .collect(),
                 self.instantiate(return_.clone(), ids, hydrator),
+                effects.clone(),
             ),
 
             Type::Tuple { elements } => tuple(
