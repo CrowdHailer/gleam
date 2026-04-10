@@ -2377,3 +2377,36 @@ fn effect_definition_with_type_params() {
 fn pub_effect_definition() {
     assert_parse_module!("pub effect Http {\n  Get(String) -> String\n}");
 }
+
+// Handle expression parsing tests
+
+#[test]
+fn handle_expression_return_only() {
+    assert_parse!(
+        "handle compute() with Nil {\n  Return(value) -> value\n}"
+    );
+}
+
+#[test]
+fn handle_expression_with_one_effect_clause() {
+    assert_parse!(
+        "handle fetch() with Nil {\n  Http.Get(url, resume) -> resume(\"response\", Nil)\n  Return(value) -> value\n}"
+    );
+}
+
+#[test]
+fn handle_expression_with_multiple_effect_clauses() {
+    assert_parse!(
+        "handle run() with 0 {\n  Store.Get(resume) -> resume(state, state)\n  Store.Set(value, resume) -> resume(Nil, value)\n  Return(v) -> #(v, state)\n}"
+    );
+}
+
+#[test]
+fn handle_expression_missing_with() {
+    assert_error!("handle compute() { Return(v) -> v }");
+}
+
+#[test]
+fn handle_expression_missing_return_clause() {
+    assert_error!("handle compute() with Nil {}");
+}

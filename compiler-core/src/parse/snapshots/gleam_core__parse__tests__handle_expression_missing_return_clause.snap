@@ -1,0 +1,14 @@
+---
+source: compiler-core/src/parse/tests.rs
+expression: "handle compute() with Nil {}"
+snapshot_kind: text
+---
+----- SOURCE CODE
+handle compute() with Nil {}
+
+----- ERROR
+error: Syntax error
+  ┌─ /src/parse/error.gleam:1:1
+  │
+1 │ handle compute() with Nil {}
+  │ ^ I was expecting an expression after this

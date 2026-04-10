@@ -19,7 +19,7 @@ Tasks are ordered by dependency. Each is self-contained and testable in isolatio
 - [x] **1.2a** Add `EffectDefinition` AST node (name, type params, operations with arg/return types) to `compiler-core/src/ast.rs` — progress: `plans/add-effects/AST_NODES.md`
 - [x] **1.2b** Add `HandleExpression` AST node (computation, initial state, effect clauses, return clause) to `compiler-core/src/ast.rs`
 - [x] **1.3a** Update top-level parser to parse `effect` blocks into `EffectDefinition` nodes — progress: `plans/add-effects/PARSER_EFFECT_DEF.md`
-- [ ] **1.3b** Update expression parser to parse `handle ... with ...` into `HandleExpression` nodes
+- [x] **1.3b** Update expression parser to parse `handle ... with ...` into `HandleExpression` nodes — progress: `plans/add-effects/PARSER_HANDLE_EXPR.md`
 
 ### Phase 2: Type System and Inference
 

@@ -146,6 +146,8 @@ pub enum UntypedExpr {
         location: SrcSpan,
         value: Box<Self>,
     },
+
+    Handle(HandleExpression),
 }
 
 impl UntypedExpr {
@@ -176,6 +178,8 @@ impl UntypedExpr {
             | Self::TupleIndex { location, .. }
             | Self::FieldAccess { location, .. }
             | Self::RecordUpdate { location, .. } => *location,
+
+            Self::Handle(HandleExpression { location, .. }) => *location,
         }
     }
 
@@ -201,7 +205,8 @@ impl UntypedExpr {
             | Self::BitArray { .. }
             | Self::RecordUpdate { .. }
             | Self::NegateBool { .. }
-            | Self::NegateInt { .. } => self.location().start,
+            | Self::NegateInt { .. }
+            | Self::Handle(_) => self.location().start,
         }
     }
 
@@ -227,7 +232,8 @@ impl UntypedExpr {
             | Self::BitArray { .. }
             | Self::RecordUpdate { .. }
             | Self::NegateBool { .. }
-            | Self::NegateInt { .. } => u8::MAX,
+            | Self::NegateInt { .. }
+            | Self::Handle(_) => u8::MAX,
         }
     }
 
@@ -265,7 +271,8 @@ impl UntypedExpr {
             | UntypedExpr::Panic { .. }
             | UntypedExpr::Echo { .. }
             | UntypedExpr::BitArray { .. }
-            | UntypedExpr::RecordUpdate { .. } => false,
+            | UntypedExpr::RecordUpdate { .. }
+            | UntypedExpr::Handle(_) => false,
         }
     }
 

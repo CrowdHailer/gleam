@@ -47,7 +47,9 @@ pub fn string_to_keyword(word: &str) -> Option<Token> {
         "todo" => Some(Token::Todo),
         "type" => Some(Token::Type),
         "use" => Some(Token::Use),
-        "with" => Some(Token::With),
+        // "with" is intentionally NOT reserved here; it is used as a label
+        // in existing Gleam code (e.g. `foo(with: bar)`). The handle-expression
+        // parser (task 1.3b) will match on Token::Name { name: "with" } instead.
         _ => None,
     }
 }

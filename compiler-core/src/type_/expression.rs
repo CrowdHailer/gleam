@@ -552,6 +552,17 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             UntypedExpr::NegateInt { location, value } => {
                 Ok(self.infer_negate_int(location, *value))
             }
+
+            UntypedExpr::Handle(h) => {
+                // Type checking of handle expressions is not yet implemented (Phase 2).
+                // For now, emit a todo-style error so the compiler doesn't crash.
+                Ok(TypedExpr::Todo {
+                    location: h.location,
+                    kind: crate::ast::TodoKind::Keyword,
+                    message: None,
+                    type_: crate::type_::int(),
+                })
+            }
         }
     }
 
@@ -1608,7 +1619,8 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                         | UntypedExpr::BitArray { .. }
                         | UntypedExpr::RecordUpdate { .. }
                         | UntypedExpr::NegateBool { .. }
-                        | UntypedExpr::NegateInt { .. } => (),
+                        | UntypedExpr::NegateInt { .. }
+                        | UntypedExpr::Handle(_) => (),
                     }
                 }
 
@@ -4535,7 +4547,8 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             | UntypedExpr::BitArray { .. }
             | UntypedExpr::RecordUpdate { .. }
             | UntypedExpr::NegateBool { .. }
-            | UntypedExpr::NegateInt { .. } => self.infer(fun),
+            | UntypedExpr::NegateInt { .. }
+            | UntypedExpr::Handle(_) => self.infer(fun),
         };
 
         let (fun, arguments, type_) =

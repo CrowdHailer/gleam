@@ -206,7 +206,8 @@ impl<'a, 'b, 'c> PipeTyper<'a, 'b, 'c> {
                 | UntypedExpr::BitArray { .. }
                 | UntypedExpr::RecordUpdate { .. }
                 | UntypedExpr::NegateBool { .. }
-                | UntypedExpr::NegateInt { .. } => (
+                | UntypedExpr::NegateInt { .. }
+                | UntypedExpr::Handle(_) => (
                     PipelineAssignmentKind::FunctionCall,
                     self.infer_apply_pipe(call),
                 ),

@@ -1,0 +1,139 @@
+---
+source: compiler-core/src/parse/tests.rs
+expression: "handle fetch() with Nil {\n  Http.Get(url, resume) -> resume(\"response\", Nil)\n  Return(value) -> value\n}"
+snapshot_kind: text
+---
+[
+    Expression(
+        Handle(
+            HandleExpression {
+                location: SrcSpan {
+                    start: 0,
+                    end: 101,
+                },
+                computation: Call {
+                    location: SrcSpan {
+                        start: 7,
+                        end: 14,
+                    },
+                    fun: Var {
+                        location: SrcSpan {
+                            start: 7,
+                            end: 12,
+                        },
+                        name: "fetch",
+                    },
+                    arguments: [],
+                    open_parenthesis: 12,
+                },
+                initial_state: Var {
+                    location: SrcSpan {
+                        start: 20,
+                        end: 23,
+                    },
+                    name: "Nil",
+                },
+                effect_clauses: [
+                    EffectClause {
+                        location: SrcSpan {
+                            start: 28,
+                            end: 76,
+                        },
+                        effect_name: "Http",
+                        effect_name_location: SrcSpan {
+                            start: 28,
+                            end: 32,
+                        },
+                        operation_name: "Get",
+                        operation_name_location: SrcSpan {
+                            start: 33,
+                            end: 36,
+                        },
+                        arguments: [
+                            (
+                                SrcSpan {
+                                    start: 37,
+                                    end: 40,
+                                },
+                                "url",
+                            ),
+                        ],
+                        resume: (
+                            SrcSpan {
+                                start: 42,
+                                end: 48,
+                            },
+                            "resume",
+                        ),
+                        body: Call {
+                            location: SrcSpan {
+                                start: 53,
+                                end: 76,
+                            },
+                            fun: Var {
+                                location: SrcSpan {
+                                    start: 53,
+                                    end: 59,
+                                },
+                                name: "resume",
+                            },
+                            arguments: [
+                                CallArg {
+                                    label: None,
+                                    location: SrcSpan {
+                                        start: 60,
+                                        end: 70,
+                                    },
+                                    value: String {
+                                        location: SrcSpan {
+                                            start: 60,
+                                            end: 70,
+                                        },
+                                        value: "response",
+                                    },
+                                    implicit: None,
+                                },
+                                CallArg {
+                                    label: None,
+                                    location: SrcSpan {
+                                        start: 72,
+                                        end: 75,
+                                    },
+                                    value: Var {
+                                        location: SrcSpan {
+                                            start: 72,
+                                            end: 75,
+                                        },
+                                        name: "Nil",
+                                    },
+                                    implicit: None,
+                                },
+                            ],
+                            open_parenthesis: 59,
+                        },
+                    },
+                ],
+                return_clause: EffectReturnClause {
+                    location: SrcSpan {
+                        start: 79,
+                        end: 101,
+                    },
+                    value: (
+                        SrcSpan {
+                            start: 86,
+                            end: 91,
+                        },
+                        "value",
+                    ),
+                    body: Var {
+                        location: SrcSpan {
+                            start: 96,
+                            end: 101,
+                        },
+                        name: "value",
+                    },
+                },
+            },
+        ),
+    ),
+]

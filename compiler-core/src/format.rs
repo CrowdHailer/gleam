@@ -440,6 +440,10 @@ impl<'comments> Formatter<'comments> {
                 }
             }
 
+            // Effect definitions are not yet formatted; this will be implemented
+            // alongside the type system work in Phase 2.
+            Definition::Effect(_) => nil(),
+
             Definition::ModuleConstant(ModuleConstant {
                 publicity,
                 name,
@@ -1176,6 +1180,10 @@ impl<'comments> Formatter<'comments> {
                 location,
                 ..
             } => self.record_update(constructor, record, arguments, location),
+
+            // Handle expressions are not yet formatted; formatting will be implemented
+            // in a later phase alongside the type system work.
+            UntypedExpr::Handle(_) => nil(),
         };
         commented(document, comments)
     }
@@ -1358,7 +1366,8 @@ impl<'comments> Formatter<'comments> {
             | UntypedExpr::BitArray { .. }
             | UntypedExpr::RecordUpdate { .. }
             | UntypedExpr::NegateBool { .. }
-            | UntypedExpr::NegateInt { .. } => self.expr(function),
+            | UntypedExpr::NegateInt { .. }
+            | UntypedExpr::Handle(_) => self.expr(function),
         };
 
         let arity = arguments.len();
@@ -1631,7 +1640,8 @@ impl<'comments> Formatter<'comments> {
             | UntypedExpr::BitArray { .. }
             | UntypedExpr::RecordUpdate { .. }
             | UntypedExpr::NegateBool { .. }
-            | UntypedExpr::NegateInt { .. } => self.expr(side),
+            | UntypedExpr::NegateInt { .. }
+            | UntypedExpr::Handle(_) => self.expr(side),
         };
         match side.bin_op_name() {
             // In case the other side is a binary operation as well and it can
@@ -2064,7 +2074,8 @@ impl<'comments> Formatter<'comments> {
             | UntypedExpr::Echo { .. }
             | UntypedExpr::RecordUpdate { .. }
             | UntypedExpr::NegateBool { .. }
-            | UntypedExpr::NegateInt { .. } => break_("", " ")
+            | UntypedExpr::NegateInt { .. }
+            | UntypedExpr::Handle(_) => break_("", " ")
                 .append(self.expr(expression).group())
                 .nest(INDENT),
         }
@@ -2094,7 +2105,8 @@ impl<'comments> Formatter<'comments> {
             | UntypedExpr::BitArray { .. }
             | UntypedExpr::RecordUpdate { .. }
             | UntypedExpr::NegateBool { .. }
-            | UntypedExpr::NegateInt { .. } => self.case_clause_value(expression),
+            | UntypedExpr::NegateInt { .. }
+            | UntypedExpr::Handle(_) => self.case_clause_value(expression),
         }
     }
 
@@ -2468,7 +2480,8 @@ impl<'comments> Formatter<'comments> {
             | UntypedExpr::BitArray { .. }
             | UntypedExpr::RecordUpdate { .. }
             | UntypedExpr::NegateBool { .. }
-            | UntypedExpr::NegateInt { .. } => self.expr(expression).group(),
+            | UntypedExpr::NegateInt { .. }
+            | UntypedExpr::Handle(_) => self.expr(expression).group(),
         }
     }
 
@@ -2730,7 +2743,8 @@ impl<'comments> Formatter<'comments> {
             | UntypedExpr::Echo { .. }
             | UntypedExpr::BitArray { .. }
             | UntypedExpr::RecordUpdate { .. }
-            | UntypedExpr::NegateInt { .. } => docvec!["!", self.expr(expression)],
+            | UntypedExpr::NegateInt { .. }
+            | UntypedExpr::Handle(_) => docvec!["!", self.expr(expression)],
         }
     }
 
@@ -2758,7 +2772,8 @@ impl<'comments> Formatter<'comments> {
             | UntypedExpr::Echo { .. }
             | UntypedExpr::BitArray { .. }
             | UntypedExpr::RecordUpdate { .. }
-            | UntypedExpr::NegateBool { .. } => docvec!["-", self.expr(expression)],
+            | UntypedExpr::NegateBool { .. }
+            | UntypedExpr::Handle(_) => docvec!["-", self.expr(expression)],
         }
     }
 
@@ -2891,7 +2906,8 @@ impl<'comments> Formatter<'comments> {
             | UntypedExpr::RecordUpdate { .. }
             | UntypedExpr::NegateBool { .. }
             | UntypedExpr::NegateInt { .. }
-            | UntypedExpr::Block { .. } => self.expr(expression),
+            | UntypedExpr::Block { .. }
+            | UntypedExpr::Handle(_) => self.expr(expression),
         }
     }
 
@@ -3559,7 +3575,8 @@ fn is_breakable_argument(expression: &UntypedExpr, arity: usize) -> bool {
         | UntypedExpr::Echo { .. }
         | UntypedExpr::RecordUpdate { .. }
         | UntypedExpr::NegateBool { .. }
-        | UntypedExpr::NegateInt { .. } => false,
+        | UntypedExpr::NegateInt { .. }
+        | UntypedExpr::Handle(_) => false,
     }
 }
 

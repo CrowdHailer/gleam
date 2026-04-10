@@ -1,0 +1,60 @@
+---
+source: compiler-core/src/parse/tests.rs
+expression: "handle compute() with Nil {\n  Return(value) -> value\n}"
+snapshot_kind: text
+---
+[
+    Expression(
+        Handle(
+            HandleExpression {
+                location: SrcSpan {
+                    start: 0,
+                    end: 52,
+                },
+                computation: Call {
+                    location: SrcSpan {
+                        start: 7,
+                        end: 16,
+                    },
+                    fun: Var {
+                        location: SrcSpan {
+                            start: 7,
+                            end: 14,
+                        },
+                        name: "compute",
+                    },
+                    arguments: [],
+                    open_parenthesis: 14,
+                },
+                initial_state: Var {
+                    location: SrcSpan {
+                        start: 22,
+                        end: 25,
+                    },
+                    name: "Nil",
+                },
+                effect_clauses: [],
+                return_clause: EffectReturnClause {
+                    location: SrcSpan {
+                        start: 30,
+                        end: 52,
+                    },
+                    value: (
+                        SrcSpan {
+                            start: 37,
+                            end: 42,
+                        },
+                        "value",
+                    ),
+                    body: Var {
+                        location: SrcSpan {
+                            start: 47,
+                            end: 52,
+                        },
+                        name: "value",
+                    },
+                },
+            },
+        ),
+    ),
+]

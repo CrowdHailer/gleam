@@ -59,8 +59,9 @@ use crate::analyse::Inferred;
 use crate::ast::{
     Arg, ArgNames, Assert, AssignName, Assignment, AssignmentKind, BinOp, BitArrayOption,
     BitArraySegment, BitArraySize, CAPTURE_VARIABLE, CallArg, Clause, ClauseGuard, Constant,
-    CustomType, Definition, Function, FunctionLiteralKind, HasLocation, Import, IntOperator,
-    Module, ModuleConstant, Pattern, Publicity, RecordBeingUpdated, RecordConstructor,
+    CustomType, Definition, EffectClause, EffectDefinition, EffectOperation, EffectReturnClause,
+    Function, FunctionLiteralKind, HandleExpression, HasLocation, Import, IntOperator, Module,
+    ModuleConstant, Pattern, Publicity, RecordBeingUpdated, RecordConstructor,
     RecordConstructorArg, RecordUpdateArg, SrcSpan, Statement, TailPattern, TargetedDefinition,
     TodoKind, TypeAlias, TypeAst, TypeAstConstructor, TypeAstConstructorName, TypeAstFn,
     TypeAstHole, TypeAstTuple, TypeAstVar, UnqualifiedImport, UntypedArg, UntypedClause,
@@ -367,6 +368,17 @@ where
                 self.advance();
                 self.advance();
                 self.parse_custom_type(start, false, true, &mut attributes)
+            }
+
+            // Effect definitions
+            (Some((start, Token::Effect, _)), _) => {
+                self.advance();
+                self.parse_effect_definition(start, false, &mut attributes)
+            }
+            (Some((start, Token::Pub, _)), Some((_, Token::Effect, _))) => {
+                self.advance();
+                self.advance();
+                self.parse_effect_definition(start, true, &mut attributes)
             }
 
             (t0, _) => {
@@ -870,6 +882,12 @@ where
                         );
                     }
                 }
+            }
+
+            // handle computation() with initial_state { ... }
+            Some((start, Token::Handle, _)) => {
+                self.advance();
+                self.parse_handle_expression(start)?
             }
 
             t0 => {
@@ -2600,6 +2618,299 @@ where
             external_erlang: std::mem::take(&mut attributes.external_erlang),
             external_javascript: std::mem::take(&mut attributes.external_javascript),
         })))
+    }
+
+    // Parses an effect definition:
+    //   effect Name { ... }
+    //   effect Name(a) { Get() -> a  Set(a) -> Nil }
+    fn parse_effect_definition(
+        &mut self,
+        start: u32,
+        public: bool,
+        attributes: &mut Attributes,
+    ) -> Result<Option<UntypedDefinition>, ParseError> {
+        let documentation = self.take_documentation(start);
+        let (name_start, name, parameters, _end, name_end) = self.expect_type_name()?;
+        let name_location = SrcSpan::new(name_start, name_end);
+
+        let _ = self.expect_one(&Token::LeftBrace)?;
+
+        let operations = Parser::series_of(
+            self,
+            &|p| match Parser::maybe_upname(p) {
+                Some((op_start, op_name, op_name_end)) => {
+                    let op_name_location = SrcSpan::new(op_start, op_name_end);
+
+                    // Parse argument types in parens: Get() or Set(a)
+                    let arguments = if p.maybe_one(&Token::LeftParen).is_some() {
+                        let args = Parser::series_of(
+                            p,
+                            &|p2| Parser::parse_type(p2),
+                            Some(&Token::Comma),
+                        )?;
+                        let _ = p.expect_one(&Token::RightParen)?;
+                        args
+                    } else {
+                        vec![]
+                    };
+
+                    // Expect ->
+                    let _ = p.expect_one(&Token::RArrow)?;
+
+                    // Parse return type
+                    match Parser::parse_type(p)? {
+                        Some(return_type) => {
+                            let end = return_type.location().end;
+                            Ok(Some(EffectOperation {
+                                location: SrcSpan::new(op_start, end),
+                                name: op_name,
+                                name_location: op_name_location,
+                                arguments,
+                                return_type,
+                            }))
+                        }
+                        None => parse_error(
+                            ParseErrorType::ExpectedType,
+                            SrcSpan::new(op_start, op_name_end),
+                        ),
+                    }
+                }
+                None => Ok(None),
+            },
+            None,
+        )?;
+
+        let (_, end_position) = self.expect_one(&Token::RightBrace)?;
+
+        Ok(Some(Definition::Effect(EffectDefinition {
+            documentation,
+            location: SrcSpan::new(start, end_position),
+            end_position,
+            publicity: self.publicity(public, attributes.internal)?,
+            name,
+            name_location,
+            parameters,
+            operations,
+        })))
+    }
+
+    // Parses a handle expression:
+    //   handle computation() with initial_state {
+    //     EffectName.OperationName(arg1, arg2, resume) -> body
+    //     Return(value) -> body
+    //   }
+    //
+    // `start` is the byte position of the `handle` keyword.
+    fn parse_handle_expression(&mut self, start: u32) -> Result<UntypedExpr, ParseError> {
+        // Parse the computation expression (e.g. `fetch()`)
+        let computation = self
+            .parse_expression()?
+            .ok_or_else(|| ParseError {
+                error: ParseErrorType::ExpectedExpr,
+                location: SrcSpan { start, end: start },
+            })?;
+
+        // Expect `with` — kept as a plain name token since we don't reserve it as a keyword.
+        // We peek first to produce a good error without consuming the token.
+        match &self.tok0 {
+            Some((_, Token::Name { name }, _)) if name == "with" => {
+                self.advance();
+            }
+            _ => {
+                let loc = self
+                    .tok0
+                    .as_ref()
+                    .map_or(SrcSpan { start, end: start }, |(s, _, e)| SrcSpan {
+                        start: *s,
+                        end: *e,
+                    });
+                let token = self
+                    .tok0
+                    .as_ref()
+                    .map_or(Token::EndOfFile, |(_, t, _)| t.clone());
+                return parse_error(
+                    ParseErrorType::UnexpectedToken {
+                        token,
+                        expected: vec!["with".into()],
+                        hint: None,
+                    },
+                    loc,
+                );
+            }
+        }
+
+        // Parse the initial state expression (e.g. `Nil`)
+        let initial_state = self
+            .parse_expression()?
+            .ok_or_else(|| ParseError {
+                error: ParseErrorType::ExpectedExpr,
+                location: SrcSpan { start, end: start },
+            })?;
+
+        // Expect opening brace `{`
+        let _ = self.expect_one(&Token::LeftBrace)?;
+
+        // Parse clauses until we see `}`
+        let mut effect_clauses: Vec<EffectClause> = vec![];
+        let mut return_clause: Option<EffectReturnClause> = None;
+
+        loop {
+            // Stop at closing brace
+            if self.maybe_one(&Token::RightBrace).is_some() {
+                break;
+            }
+
+            // Peek to determine which kind of clause follows
+            let is_upname = matches!(&self.tok0, Some((_, Token::UpName { .. }, _)));
+            if !is_upname {
+                let loc = self
+                    .tok0
+                    .as_ref()
+                    .map_or(SrcSpan { start, end: start }, |(s, _, e)| SrcSpan {
+                        start: *s,
+                        end: *e,
+                    });
+                let token = self
+                    .tok0
+                    .as_ref()
+                    .map_or(Token::EndOfFile, |(_, t, _)| t.clone());
+                return parse_error(
+                    ParseErrorType::UnexpectedToken {
+                        token,
+                        expected: vec!["an effect clause or Return(value) -> body".into()],
+                        hint: None,
+                    },
+                    loc,
+                );
+            }
+
+            // Consume the UpName token
+            let (clause_start, upname, clause_end) = self.expect_upname()?;
+
+            if upname == "Return" {
+                // Return(value) -> body
+                let _ = self.expect_one(&Token::LeftParen)?;
+                let (value_span, value_name, value_end) = self.expect_name()?;
+                let _ = self.expect_one(&Token::RightParen)?;
+                let _ = self.expect_one(&Token::RArrow)?;
+                let body = self.parse_expression()?.ok_or_else(|| ParseError {
+                    error: ParseErrorType::ExpectedExpr,
+                    location: SrcSpan {
+                        start: clause_start,
+                        end: clause_end,
+                    },
+                })?;
+                let end = body.location().end;
+                return_clause = Some(EffectReturnClause {
+                    location: SrcSpan {
+                        start: clause_start,
+                        end,
+                    },
+                    value: (
+                        SrcSpan {
+                            start: value_span,
+                            end: value_end,
+                        },
+                        value_name,
+                    ),
+                    body,
+                });
+            } else {
+                // EffectName.OperationName(arg1, arg2, ..., resume) -> body
+                let effect_name = upname;
+                let effect_name_location = SrcSpan {
+                    start: clause_start,
+                    end: clause_end,
+                };
+
+                // Expect `.`
+                let _ = self.expect_one(&Token::Dot)?;
+
+                // Expect operation UpName
+                let (op_start, op_name, op_end) = self.expect_upname()?;
+                let operation_name_location = SrcSpan {
+                    start: op_start,
+                    end: op_end,
+                };
+
+                // Parse `(arg1, arg2, ..., resume)` — all lowercase names
+                let _ = self.expect_one(&Token::LeftParen)?;
+                let all_args = Parser::series_of(
+                    self,
+                    &|p| match p.tok0.take() {
+                        Some((s, Token::Name { name }, e)) => {
+                            p.advance();
+                            Ok(Some((SrcSpan { start: s, end: e }, name)))
+                        }
+                        t0 => {
+                            p.tok0 = t0;
+                            Ok(None)
+                        }
+                    },
+                    Some(&Token::Comma),
+                )?;
+                let _ = self.expect_one(&Token::RightParen)?;
+
+                // The last element is `resume`; everything before is `arguments`.
+                let mut all_args = all_args;
+                let resume = match all_args.pop() {
+                    Some(r) => r,
+                    None => {
+                        return parse_error(
+                            ParseErrorType::ExpectedExpr,
+                            SrcSpan {
+                                start: op_start,
+                                end: op_end,
+                            },
+                        );
+                    }
+                };
+                let arguments = all_args;
+
+                let _ = self.expect_one(&Token::RArrow)?;
+                let body = self.parse_expression()?.ok_or_else(|| ParseError {
+                    error: ParseErrorType::ExpectedExpr,
+                    location: SrcSpan {
+                        start: clause_start,
+                        end: clause_end,
+                    },
+                })?;
+                let end = body.location().end;
+
+                effect_clauses.push(EffectClause {
+                    location: SrcSpan {
+                        start: clause_start,
+                        end,
+                    },
+                    effect_name,
+                    effect_name_location,
+                    operation_name: op_name,
+                    operation_name_location,
+                    arguments,
+                    resume,
+                    body,
+                });
+            }
+        }
+
+        let return_clause = match return_clause {
+            Some(rc) => rc,
+            None => {
+                return parse_error(
+                    ParseErrorType::ExpectedExpr,
+                    SrcSpan { start, end: start },
+                );
+            }
+        };
+
+        let end = return_clause.location.end;
+        Ok(UntypedExpr::Handle(HandleExpression {
+            location: SrcSpan { start, end },
+            computation: Box::new(computation),
+            initial_state: Box::new(initial_state),
+            effect_clauses,
+            return_clause: Box::new(return_clause),
+        }))
     }
 
     // examples:

@@ -151,7 +151,8 @@ impl UntypedModule {
                 Definition::Function(_)
                 | Definition::TypeAlias(_)
                 | Definition::CustomType(_)
-                | Definition::ModuleConstant(_) => None,
+                | Definition::ModuleConstant(_)
+                | Definition::Effect(_) => None,
             })
             .collect()
     }
@@ -1324,6 +1325,7 @@ pub enum Definition<T, Expr, ConstantRecordTag, PackageName> {
     CustomType(CustomType<T>),
     Import(Import<PackageName>),
     ModuleConstant(ModuleConstant<T, ConstantRecordTag>),
+    Effect(EffectDefinition),
 }
 
 impl<A, B, C, E> Definition<A, B, C, E> {
@@ -1333,7 +1335,8 @@ impl<A, B, C, E> Definition<A, B, C, E> {
             | Definition::Import(Import { location, .. })
             | Definition::TypeAlias(TypeAlias { location, .. })
             | Definition::CustomType(CustomType { location, .. })
-            | Definition::ModuleConstant(ModuleConstant { location, .. }) => *location,
+            | Definition::ModuleConstant(ModuleConstant { location, .. })
+            | Definition::Effect(EffectDefinition { location, .. }) => *location,
         }
     }
 
@@ -1376,6 +1379,9 @@ impl<A, B, C, E> Definition<A, B, C, E> {
             })
             | Definition::ModuleConstant(ModuleConstant {
                 documentation: doc, ..
+            })
+            | Definition::Effect(EffectDefinition {
+                documentation: doc, ..
             }) => doc.as_ref().map(|(_, doc)| doc.clone()),
         }
     }
@@ -1385,7 +1391,8 @@ impl<A, B, C, E> Definition<A, B, C, E> {
             Definition::Function(Function { publicity, .. })
             | Definition::CustomType(CustomType { publicity, .. })
             | Definition::ModuleConstant(ModuleConstant { publicity, .. })
-            | Definition::TypeAlias(TypeAlias { publicity, .. }) => publicity.is_internal(),
+            | Definition::TypeAlias(TypeAlias { publicity, .. })
+            | Definition::Effect(EffectDefinition { publicity, .. }) => publicity.is_internal(),
 
             Definition::Import(_) => false,
         }
@@ -1889,7 +1896,8 @@ impl CallArg<UntypedExpr> {
             | UntypedExpr::BitArray { .. }
             | UntypedExpr::RecordUpdate { .. }
             | UntypedExpr::NegateBool { .. }
-            | UntypedExpr::NegateInt { .. } => false,
+            | UntypedExpr::NegateInt { .. }
+            | UntypedExpr::Handle(_) => false,
         }
     }
 }
@@ -4278,6 +4286,7 @@ pub struct GroupedDefinitions {
     pub custom_types: Vec<UntypedCustomType>,
     pub imports: Vec<UntypedImport>,
     pub type_aliases: Vec<UntypedTypeAlias>,
+    pub effect_definitions: Vec<EffectDefinition>,
 }
 
 impl GroupedDefinitions {
@@ -4298,8 +4307,14 @@ impl GroupedDefinitions {
             constants,
             imports,
             type_aliases,
+            effect_definitions,
         } = self;
-        functions.len() + constants.len() + imports.len() + custom_types.len() + type_aliases.len()
+        functions.len()
+            + constants.len()
+            + imports.len()
+            + custom_types.len()
+            + type_aliases.len()
+            + effect_definitions.len()
     }
 
     fn add(&mut self, statement: UntypedDefinition) {
@@ -4309,6 +4324,7 @@ impl GroupedDefinitions {
             Definition::TypeAlias(type_alias) => self.type_aliases.push(type_alias),
             Definition::CustomType(custom_type) => self.custom_types.push(custom_type),
             Definition::ModuleConstant(constant) => self.constants.push(constant),
+            Definition::Effect(effect) => self.effect_definitions.push(effect),
         }
     }
 }

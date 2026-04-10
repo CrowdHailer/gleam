@@ -1,0 +1,225 @@
+---
+source: compiler-core/src/parse/tests.rs
+expression: "handle run() with 0 {\n  Store.Get(resume) -> resume(state, state)\n  Store.Set(value, resume) -> resume(Nil, value)\n  Return(v) -> #(v, state)\n}"
+snapshot_kind: text
+---
+[
+    Expression(
+        Handle(
+            HandleExpression {
+                location: SrcSpan {
+                    start: 0,
+                    end: 141,
+                },
+                computation: Call {
+                    location: SrcSpan {
+                        start: 7,
+                        end: 12,
+                    },
+                    fun: Var {
+                        location: SrcSpan {
+                            start: 7,
+                            end: 10,
+                        },
+                        name: "run",
+                    },
+                    arguments: [],
+                    open_parenthesis: 10,
+                },
+                initial_state: Int {
+                    location: SrcSpan {
+                        start: 18,
+                        end: 19,
+                    },
+                    value: "0",
+                    int_value: 0,
+                },
+                effect_clauses: [
+                    EffectClause {
+                        location: SrcSpan {
+                            start: 24,
+                            end: 65,
+                        },
+                        effect_name: "Store",
+                        effect_name_location: SrcSpan {
+                            start: 24,
+                            end: 29,
+                        },
+                        operation_name: "Get",
+                        operation_name_location: SrcSpan {
+                            start: 30,
+                            end: 33,
+                        },
+                        arguments: [],
+                        resume: (
+                            SrcSpan {
+                                start: 34,
+                                end: 40,
+                            },
+                            "resume",
+                        ),
+                        body: Call {
+                            location: SrcSpan {
+                                start: 45,
+                                end: 65,
+                            },
+                            fun: Var {
+                                location: SrcSpan {
+                                    start: 45,
+                                    end: 51,
+                                },
+                                name: "resume",
+                            },
+                            arguments: [
+                                CallArg {
+                                    label: None,
+                                    location: SrcSpan {
+                                        start: 52,
+                                        end: 57,
+                                    },
+                                    value: Var {
+                                        location: SrcSpan {
+                                            start: 52,
+                                            end: 57,
+                                        },
+                                        name: "state",
+                                    },
+                                    implicit: None,
+                                },
+                                CallArg {
+                                    label: None,
+                                    location: SrcSpan {
+                                        start: 59,
+                                        end: 64,
+                                    },
+                                    value: Var {
+                                        location: SrcSpan {
+                                            start: 59,
+                                            end: 64,
+                                        },
+                                        name: "state",
+                                    },
+                                    implicit: None,
+                                },
+                            ],
+                            open_parenthesis: 51,
+                        },
+                    },
+                    EffectClause {
+                        location: SrcSpan {
+                            start: 68,
+                            end: 114,
+                        },
+                        effect_name: "Store",
+                        effect_name_location: SrcSpan {
+                            start: 68,
+                            end: 73,
+                        },
+                        operation_name: "Set",
+                        operation_name_location: SrcSpan {
+                            start: 74,
+                            end: 77,
+                        },
+                        arguments: [
+                            (
+                                SrcSpan {
+                                    start: 78,
+                                    end: 83,
+                                },
+                                "value",
+                            ),
+                        ],
+                        resume: (
+                            SrcSpan {
+                                start: 85,
+                                end: 91,
+                            },
+                            "resume",
+                        ),
+                        body: Call {
+                            location: SrcSpan {
+                                start: 96,
+                                end: 114,
+                            },
+                            fun: Var {
+                                location: SrcSpan {
+                                    start: 96,
+                                    end: 102,
+                                },
+                                name: "resume",
+                            },
+                            arguments: [
+                                CallArg {
+                                    label: None,
+                                    location: SrcSpan {
+                                        start: 103,
+                                        end: 106,
+                                    },
+                                    value: Var {
+                                        location: SrcSpan {
+                                            start: 103,
+                                            end: 106,
+                                        },
+                                        name: "Nil",
+                                    },
+                                    implicit: None,
+                                },
+                                CallArg {
+                                    label: None,
+                                    location: SrcSpan {
+                                        start: 108,
+                                        end: 113,
+                                    },
+                                    value: Var {
+                                        location: SrcSpan {
+                                            start: 108,
+                                            end: 113,
+                                        },
+                                        name: "value",
+                                    },
+                                    implicit: None,
+                                },
+                            ],
+                            open_parenthesis: 102,
+                        },
+                    },
+                ],
+                return_clause: EffectReturnClause {
+                    location: SrcSpan {
+                        start: 117,
+                        end: 141,
+                    },
+                    value: (
+                        SrcSpan {
+                            start: 124,
+                            end: 125,
+                        },
+                        "v",
+                    ),
+                    body: Tuple {
+                        location: SrcSpan {
+                            start: 130,
+                            end: 141,
+                        },
+                        elements: [
+                            Var {
+                                location: SrcSpan {
+                                    start: 132,
+                                    end: 133,
+                                },
+                                name: "v",
+                            },
+                            Var {
+                                location: SrcSpan {
+                                    start: 135,
+                                    end: 140,
+                                },
+                                name: "state",
+                            },
+                        ],
+                    },
+                },
+            },
+        ),
+    ),
+]

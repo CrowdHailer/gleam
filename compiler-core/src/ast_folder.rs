@@ -7,12 +7,13 @@ use crate::{
     analyse::Inferred,
     ast::{
         Assert, AssignName, Assignment, BinOp, BitArraySize, CallArg, Constant, Definition,
-        FunctionLiteralKind, InvalidExpression, Pattern, RecordBeingUpdated, RecordUpdateArg,
-        SrcSpan, Statement, TailPattern, TargetedDefinition, TodoKind, TypeAst, TypeAstConstructor,
-        TypeAstFn, TypeAstHole, TypeAstTuple, TypeAstVar, UntypedArg, UntypedAssert,
-        UntypedAssignment, UntypedClause, UntypedConstant, UntypedConstantBitArraySegment,
-        UntypedCustomType, UntypedDefinition, UntypedExpr, UntypedExprBitArraySegment,
-        UntypedFunction, UntypedImport, UntypedModule, UntypedModuleConstant, UntypedPattern,
+        EffectClause, EffectReturnClause, FunctionLiteralKind, HandleExpression,
+        InvalidExpression, Pattern, RecordBeingUpdated, RecordUpdateArg, SrcSpan, Statement,
+        TailPattern, TargetedDefinition, TodoKind, TypeAst, TypeAstConstructor, TypeAstFn,
+        TypeAstHole, TypeAstTuple, TypeAstVar, UntypedArg, UntypedAssert, UntypedAssignment,
+        UntypedClause, UntypedConstant, UntypedConstantBitArraySegment, UntypedCustomType,
+        UntypedDefinition, UntypedExpr, UntypedExprBitArraySegment, UntypedFunction,
+        UntypedImport, UntypedModule, UntypedModuleConstant, UntypedPattern,
         UntypedPatternBitArraySegment, UntypedRecordUpdateArg, UntypedStatement,
         UntypedTailPattern, UntypedTypeAlias, UntypedUse, UntypedUseAssignment, Use, UseAssignment,
     },
@@ -60,6 +61,11 @@ pub trait UntypedModuleFolder: TypeAstFolder + UntypedExprFolder {
                         let definition = self.walk_module_constant(constant);
                         TargetedDefinition { definition, target }
                     }
+
+                    Definition::Effect(effect) => TargetedDefinition {
+                        definition: Definition::Effect(effect),
+                        target,
+                    },
                 }
             })
             .collect();
@@ -358,7 +364,13 @@ pub trait UntypedExprFolder: TypeAstFolder + UntypedConstantFolder + PatternFold
             UntypedExpr::NegateBool { location, value } => self.fold_negate_bool(location, value),
 
             UntypedExpr::NegateInt { location, value } => self.fold_negate_int(location, value),
+
+            UntypedExpr::Handle(h) => self.fold_handle(h),
         }
+    }
+
+    fn fold_handle(&mut self, h: HandleExpression) -> UntypedExpr {
+        UntypedExpr::Handle(h)
     }
 
     /// You probably don't want to override this method.
@@ -591,6 +603,44 @@ pub trait UntypedExprFolder: TypeAstFolder + UntypedConstantFolder + PatternFold
                     record,
                     arguments,
                 }
+            }
+
+            UntypedExpr::Handle(HandleExpression {
+                location,
+                computation,
+                initial_state,
+                effect_clauses,
+                return_clause,
+            }) => {
+                let computation = Box::new(self.fold_expr(*computation));
+                let initial_state = Box::new(self.fold_expr(*initial_state));
+                let effect_clauses = effect_clauses
+                    .into_iter()
+                    .map(|EffectClause { location, effect_name, effect_name_location, operation_name, operation_name_location, arguments, resume, body }| {
+                        EffectClause {
+                            location,
+                            effect_name,
+                            effect_name_location,
+                            operation_name,
+                            operation_name_location,
+                            arguments,
+                            resume,
+                            body: self.fold_expr(body),
+                        }
+                    })
+                    .collect();
+                let return_clause = Box::new(EffectReturnClause {
+                    location: return_clause.location,
+                    value: return_clause.value,
+                    body: self.fold_expr(return_clause.body),
+                });
+                UntypedExpr::Handle(HandleExpression {
+                    location,
+                    computation,
+                    initial_state,
+                    effect_clauses,
+                    return_clause,
+                })
             }
         }
     }

@@ -318,6 +318,15 @@ impl<'a> CallGraphBuilder<'a> {
                     self.names = names;
                 }
             }
+
+            UntypedExpr::Handle(h) => {
+                self.expression(&h.computation);
+                self.expression(&h.initial_state);
+                for clause in &h.effect_clauses {
+                    self.expression(&clause.body);
+                }
+                self.expression(&h.return_clause.body);
+            }
         }
     }
 
