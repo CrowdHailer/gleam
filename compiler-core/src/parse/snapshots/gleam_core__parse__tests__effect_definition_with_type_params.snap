@@ -1,0 +1,124 @@
+---
+source: compiler-core/src/parse/tests.rs
+expression: "effect Store(a) {\n  Get() -> a\n  Set(a) -> Nil\n}"
+snapshot_kind: text
+---
+Parsed {
+    module: Module {
+        name: "",
+        documentation: [],
+        type_info: (),
+        definitions: [
+            TargetedDefinition {
+                definition: Effect(
+                    EffectDefinition {
+                        location: SrcSpan {
+                            start: 0,
+                            end: 48,
+                        },
+                        end_position: 48,
+                        name: "Store",
+                        name_location: SrcSpan {
+                            start: 7,
+                            end: 12,
+                        },
+                        publicity: Private,
+                        parameters: [
+                            (
+                                SrcSpan {
+                                    start: 13,
+                                    end: 14,
+                                },
+                                "a",
+                            ),
+                        ],
+                        operations: [
+                            EffectOperation {
+                                location: SrcSpan {
+                                    start: 20,
+                                    end: 30,
+                                },
+                                name: "Get",
+                                name_location: SrcSpan {
+                                    start: 20,
+                                    end: 23,
+                                },
+                                arguments: [],
+                                return_type: Var(
+                                    TypeAstVar {
+                                        location: SrcSpan {
+                                            start: 29,
+                                            end: 30,
+                                        },
+                                        name: "a",
+                                    },
+                                ),
+                            },
+                            EffectOperation {
+                                location: SrcSpan {
+                                    start: 33,
+                                    end: 46,
+                                },
+                                name: "Set",
+                                name_location: SrcSpan {
+                                    start: 33,
+                                    end: 36,
+                                },
+                                arguments: [
+                                    Var(
+                                        TypeAstVar {
+                                            location: SrcSpan {
+                                                start: 37,
+                                                end: 38,
+                                            },
+                                            name: "a",
+                                        },
+                                    ),
+                                ],
+                                return_type: Constructor(
+                                    TypeAstConstructor {
+                                        location: SrcSpan {
+                                            start: 43,
+                                            end: 46,
+                                        },
+                                        name: Unqualified {
+                                            name: "Nil",
+                                            location: SrcSpan {
+                                                start: 43,
+                                                end: 46,
+                                            },
+                                        },
+                                        arguments: [],
+                                        start_parentheses: None,
+                                    },
+                                ),
+                            },
+                        ],
+                        documentation: None,
+                    },
+                ),
+                target: None,
+            },
+        ],
+        names: Names {
+            local_types: {},
+            imported_modules: {},
+            type_variables: {},
+            local_value_constructors: {},
+            reexport_aliases: {},
+        },
+        unused_definition_positions: {},
+    },
+    extra: ModuleExtra {
+        module_comments: [],
+        doc_comments: [],
+        comments: [],
+        empty_lines: [],
+        new_lines: [
+            17,
+            30,
+            46,
+        ],
+        trailing_commas: [],
+    },
+}

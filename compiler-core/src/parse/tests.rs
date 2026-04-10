@@ -2355,3 +2355,25 @@ fn unicode_fullwidth_caret() {
 fn unicode_fullwidth_colon() {
     assert_module_error!("pub fn wibble(x\u{FF1A} Int) { x }");
 }
+
+// Effect definition parsing tests
+
+#[test]
+fn effect_definition_empty() {
+    assert_parse_module!("effect Store {}");
+}
+
+#[test]
+fn effect_definition_with_operations() {
+    assert_parse_module!("effect Store {\n  Get() -> Int\n  Set(Int) -> Nil\n}");
+}
+
+#[test]
+fn effect_definition_with_type_params() {
+    assert_parse_module!("effect Store(a) {\n  Get() -> a\n  Set(a) -> Nil\n}");
+}
+
+#[test]
+fn pub_effect_definition() {
+    assert_parse_module!("pub effect Http {\n  Get(String) -> String\n}");
+}

@@ -1,0 +1,132 @@
+---
+source: compiler-core/src/parse/tests.rs
+expression: "effect Store {\n  Get() -> Int\n  Set(Int) -> Nil\n}"
+snapshot_kind: text
+---
+Parsed {
+    module: Module {
+        name: "",
+        documentation: [],
+        type_info: (),
+        definitions: [
+            TargetedDefinition {
+                definition: Effect(
+                    EffectDefinition {
+                        location: SrcSpan {
+                            start: 0,
+                            end: 49,
+                        },
+                        end_position: 49,
+                        name: "Store",
+                        name_location: SrcSpan {
+                            start: 7,
+                            end: 12,
+                        },
+                        publicity: Private,
+                        parameters: [],
+                        operations: [
+                            EffectOperation {
+                                location: SrcSpan {
+                                    start: 17,
+                                    end: 29,
+                                },
+                                name: "Get",
+                                name_location: SrcSpan {
+                                    start: 17,
+                                    end: 20,
+                                },
+                                arguments: [],
+                                return_type: Constructor(
+                                    TypeAstConstructor {
+                                        location: SrcSpan {
+                                            start: 26,
+                                            end: 29,
+                                        },
+                                        name: Unqualified {
+                                            name: "Int",
+                                            location: SrcSpan {
+                                                start: 26,
+                                                end: 29,
+                                            },
+                                        },
+                                        arguments: [],
+                                        start_parentheses: None,
+                                    },
+                                ),
+                            },
+                            EffectOperation {
+                                location: SrcSpan {
+                                    start: 32,
+                                    end: 47,
+                                },
+                                name: "Set",
+                                name_location: SrcSpan {
+                                    start: 32,
+                                    end: 35,
+                                },
+                                arguments: [
+                                    Constructor(
+                                        TypeAstConstructor {
+                                            location: SrcSpan {
+                                                start: 36,
+                                                end: 39,
+                                            },
+                                            name: Unqualified {
+                                                name: "Int",
+                                                location: SrcSpan {
+                                                    start: 36,
+                                                    end: 39,
+                                                },
+                                            },
+                                            arguments: [],
+                                            start_parentheses: None,
+                                        },
+                                    ),
+                                ],
+                                return_type: Constructor(
+                                    TypeAstConstructor {
+                                        location: SrcSpan {
+                                            start: 44,
+                                            end: 47,
+                                        },
+                                        name: Unqualified {
+                                            name: "Nil",
+                                            location: SrcSpan {
+                                                start: 44,
+                                                end: 47,
+                                            },
+                                        },
+                                        arguments: [],
+                                        start_parentheses: None,
+                                    },
+                                ),
+                            },
+                        ],
+                        documentation: None,
+                    },
+                ),
+                target: None,
+            },
+        ],
+        names: Names {
+            local_types: {},
+            imported_modules: {},
+            type_variables: {},
+            local_value_constructors: {},
+            reexport_aliases: {},
+        },
+        unused_definition_positions: {},
+    },
+    extra: ModuleExtra {
+        module_comments: [],
+        doc_comments: [],
+        comments: [],
+        empty_lines: [],
+        new_lines: [
+            14,
+            29,
+            47,
+        ],
+        trailing_commas: [],
+    },
+}

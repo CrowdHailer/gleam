@@ -1,0 +1,102 @@
+---
+source: compiler-core/src/parse/tests.rs
+expression: "pub effect Http {\n  Get(String) -> String\n}"
+snapshot_kind: text
+---
+Parsed {
+    module: Module {
+        name: "",
+        documentation: [],
+        type_info: (),
+        definitions: [
+            TargetedDefinition {
+                definition: Effect(
+                    EffectDefinition {
+                        location: SrcSpan {
+                            start: 0,
+                            end: 43,
+                        },
+                        end_position: 43,
+                        name: "Http",
+                        name_location: SrcSpan {
+                            start: 11,
+                            end: 15,
+                        },
+                        publicity: Public,
+                        parameters: [],
+                        operations: [
+                            EffectOperation {
+                                location: SrcSpan {
+                                    start: 20,
+                                    end: 41,
+                                },
+                                name: "Get",
+                                name_location: SrcSpan {
+                                    start: 20,
+                                    end: 23,
+                                },
+                                arguments: [
+                                    Constructor(
+                                        TypeAstConstructor {
+                                            location: SrcSpan {
+                                                start: 24,
+                                                end: 30,
+                                            },
+                                            name: Unqualified {
+                                                name: "String",
+                                                location: SrcSpan {
+                                                    start: 24,
+                                                    end: 30,
+                                                },
+                                            },
+                                            arguments: [],
+                                            start_parentheses: None,
+                                        },
+                                    ),
+                                ],
+                                return_type: Constructor(
+                                    TypeAstConstructor {
+                                        location: SrcSpan {
+                                            start: 35,
+                                            end: 41,
+                                        },
+                                        name: Unqualified {
+                                            name: "String",
+                                            location: SrcSpan {
+                                                start: 35,
+                                                end: 41,
+                                            },
+                                        },
+                                        arguments: [],
+                                        start_parentheses: None,
+                                    },
+                                ),
+                            },
+                        ],
+                        documentation: None,
+                    },
+                ),
+                target: None,
+            },
+        ],
+        names: Names {
+            local_types: {},
+            imported_modules: {},
+            type_variables: {},
+            local_value_constructors: {},
+            reexport_aliases: {},
+        },
+        unused_definition_positions: {},
+    },
+    extra: ModuleExtra {
+        module_comments: [],
+        doc_comments: [],
+        comments: [],
+        empty_lines: [],
+        new_lines: [
+            17,
+            41,
+        ],
+        trailing_commas: [],
+    },
+}

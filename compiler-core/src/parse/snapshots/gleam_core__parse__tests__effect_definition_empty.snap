@@ -1,0 +1,51 @@
+---
+source: compiler-core/src/parse/tests.rs
+expression: "effect Store {}"
+snapshot_kind: text
+---
+Parsed {
+    module: Module {
+        name: "",
+        documentation: [],
+        type_info: (),
+        definitions: [
+            TargetedDefinition {
+                definition: Effect(
+                    EffectDefinition {
+                        location: SrcSpan {
+                            start: 0,
+                            end: 15,
+                        },
+                        end_position: 15,
+                        name: "Store",
+                        name_location: SrcSpan {
+                            start: 7,
+                            end: 12,
+                        },
+                        publicity: Private,
+                        parameters: [],
+                        operations: [],
+                        documentation: None,
+                    },
+                ),
+                target: None,
+            },
+        ],
+        names: Names {
+            local_types: {},
+            imported_modules: {},
+            type_variables: {},
+            local_value_constructors: {},
+            reexport_aliases: {},
+        },
+        unused_definition_positions: {},
+    },
+    extra: ModuleExtra {
+        module_comments: [],
+        doc_comments: [],
+        comments: [],
+        empty_lines: [],
+        new_lines: [],
+        trailing_commas: [],
+    },
+}
