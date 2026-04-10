@@ -73,7 +73,9 @@ impl Printer {
                 }
             }
 
-            Type::Fn { arguments, return_ } => "fn("
+            Type::Fn {
+                arguments, return_, ..
+            } => "fn("
                 .to_doc()
                 .append(self.arguments_to_gleam_doc(arguments))
                 .append(") ->")
@@ -298,6 +300,7 @@ fn pretty_print_test() {
     );
     assert_string!(
         Type::Fn {
+            effects: crate::type_::EffectRow::default(),
             arguments: vec![
                 Arc::new(Type::Named {
                     arguments: vec![],

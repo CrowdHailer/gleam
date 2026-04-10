@@ -23,7 +23,7 @@ Tasks are ordered by dependency. Each is self-contained and testable in isolatio
 
 ### Phase 2: Type System and Inference
 
-- [ ] **2.1** Extend `Type::Fn` to carry an effect row field representing the set of performed effects
+- [x] **2.1** Extend `Type::Fn` to carry an effect row field representing the set of performed effects — progress: `plans/add-effects/TYPE_FN_EFFECTS.md`
 - [ ] **2.2** Implement effect row unification: propagate effects from callee to caller during type inference
 - [ ] **2.3a** Infer effect signature from an `EffectDefinition`; register it in the type environment
 - [ ] **2.3b** When an effect is performed inside a function, add that effect to the enclosing function's row

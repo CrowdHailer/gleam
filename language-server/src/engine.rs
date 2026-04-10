@@ -16,7 +16,7 @@ use gleam_core::{
     line_numbers::LineNumbers,
     paths::ProjectPaths,
     type_::{
-        self, Deprecation, ModuleInterface, Type, TypeConstructor, ValueConstructor,
+        self, Deprecation, EffectRow, ModuleInterface, Type, TypeConstructor, ValueConstructor,
         ValueConstructorVariant,
         error::{Named, VariableSyntax},
         printer::Printer,
@@ -1416,6 +1416,7 @@ fn get_function_type(fun: &TypedFunction) -> Type {
             .map(|argument| argument.type_.clone())
             .collect(),
         return_: fun.return_type.clone(),
+        effects: EffectRow::default(),
     }
 }
 

@@ -3204,12 +3204,17 @@ impl ConstructorSpecialiser {
                 inferred_variant: *inferred_variant,
             },
 
-            Type::Fn { arguments, return_ } => Type::Fn {
+            Type::Fn {
+                arguments,
+                return_,
+                effects,
+            } => Type::Fn {
                 arguments: arguments
                     .iter()
                     .map(|argument| self.specialise_type(argument))
                     .collect(),
                 return_: return_.clone(),
+                effects: effects.clone(),
             },
 
             Type::Var { type_ } => Type::Var {

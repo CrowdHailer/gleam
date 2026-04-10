@@ -49,6 +49,35 @@ pub trait HasType {
     fn type_(&self) -> Arc<Type>;
 }
 
+/// Identifies an algebraic effect by the module that defines it and its name.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct EffectLabel {
+    pub module: EcoString,
+    pub name: EcoString,
+}
+
+/// The effect row of a function type: the set of algebraic effects the function
+/// may perform, with optional row-polymorphism.
+///
+/// `var: None` is a *closed* row — the effect set is fully known.
+/// `var: Some(id)` is an *open* row — there may be additional effects unified
+/// later (used for row-polymorphic functions, task 2.2).
+///
+/// An empty closed row (`EffectRow::default()`) represents a pure function.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, Default)]
+pub struct EffectRow {
+    pub effects: Vec<EffectLabel>,
+    /// Row-polymorphism variable. `None` = closed row.
+    pub var: Option<u64>,
+}
+
+impl EffectRow {
+    /// Returns `true` if this row is definitely empty (pure, closed, no effects).
+    pub fn is_empty(&self) -> bool {
+        self.effects.is_empty() && self.var.is_none()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Type {
     /// A nominal (named) type such as `Int`, `Float`, or a programmer defined
@@ -95,11 +124,16 @@ pub enum Type {
         inferred_variant: Option<u16>,
     },
 
-    /// The type of a function. It takes arguments and returns a value.
+    /// The type of a function. It takes arguments and returns a value, and may
+    /// perform a set of algebraic effects described by the effect row.
     ///
     Fn {
         arguments: Vec<Arc<Type>>,
         return_: Arc<Type>,
+        /// The algebraic effects this function may perform.
+        /// An empty closed row means the function is pure.
+        #[serde(default)]
+        effects: EffectRow,
     },
 
     /// A type variable. See the contained `TypeVar` enum for more information.
@@ -376,7 +410,7 @@ impl Type {
                     Arc::make_mut(element).generalise_custom_type_variant();
                 }
             }
-            Type::Fn { arguments, return_ } => {
+            Type::Fn { arguments, return_, .. } => {
                 for argument in arguments {
                     Arc::make_mut(argument).generalise_custom_type_variant();
                 }
@@ -585,10 +619,15 @@ impl Type {
                 type_.as_ref().borrow().same_as_other_type(one)
             }
             (
-                Type::Fn { arguments, return_ },
+                Type::Fn {
+                    arguments,
+                    return_,
+                    effects,
+                },
                 Type::Fn {
                     arguments: other_arguments,
                     return_: other_return,
+                    effects: other_effects,
                 },
             ) => {
                 arguments.len() == other_arguments.len()
@@ -597,6 +636,7 @@ impl Type {
                         .zip(other_arguments)
                         .all(|(one, other)| one.same_as(other))
                     && return_.same_as(other_return)
+                    && effects == other_effects
             }
 
             (Type::Var { type_ }, other) => type_.as_ref().borrow().same_as_other_type(other),
@@ -1579,7 +1619,9 @@ fn unify_unbound_type(type_: &Type, own_id: u64) -> Result<(), UnifyError> {
             Ok(())
         }
 
-        Type::Fn { arguments, return_ } => {
+        Type::Fn {
+            arguments, return_, ..
+        } => {
             for argument in arguments {
                 unify_unbound_type(argument, own_id)?;
             }
@@ -1625,7 +1667,10 @@ fn match_fun_type(
         }
     }
 
-    if let Type::Fn { arguments, return_ } = type_.deref() {
+    if let Type::Fn {
+        arguments, return_, ..
+    } = type_.deref()
+    {
         return if arguments.len() != arity {
             Err(MatchFunTypeError::IncorrectArity {
                 expected: arguments.len(),
@@ -1673,12 +1718,17 @@ pub fn generalise(t: Arc<Type>) -> Arc<Type> {
             })
         }
 
-        Type::Fn { arguments, return_ } => fn_(
+        Type::Fn {
+            arguments,
+            return_,
+            effects,
+        } => fn_with_effects(
             arguments
                 .iter()
                 .map(|type_| generalise(type_.clone()))
                 .collect(),
             generalise(return_.clone()),
+            effects.clone(),
         ),
 
         Type::Tuple { elements } => tuple(

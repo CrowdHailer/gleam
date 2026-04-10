@@ -105,7 +105,9 @@ fn generic_ids(type_: &Type, ids: &mut HashMap<u64, u64>) {
                 generic_ids(argument, ids)
             }
         }
-        Type::Fn { arguments, return_ } => {
+        Type::Fn {
+            arguments, return_, ..
+        } => {
             for argument in arguments {
                 generic_ids(argument, ids)
             }
@@ -286,7 +288,9 @@ impl<'a> TypeScriptGenerator<'a> {
                     self.collect_imports_for_type(argument, imports);
                 }
             }
-            Type::Fn { arguments, return_ } => {
+            Type::Fn {
+                arguments, return_, ..
+            } => {
                 for argument in arguments {
                     self.collect_imports_for_type(argument, imports);
                 }
@@ -911,7 +915,9 @@ impl<'a> TypeScriptGenerator<'a> {
                 ..
             } => self.print_type_app(name, arguments, module, generic_printing),
 
-            Type::Fn { arguments, return_ } => self.print_fn(arguments, return_, generic_printing),
+            Type::Fn {
+                arguments, return_, ..
+            } => self.print_fn(arguments, return_, generic_printing),
 
             Type::Tuple { elements } => tuple(
                 elements
@@ -941,9 +947,9 @@ impl<'a> TypeScriptGenerator<'a> {
                 ..
             } => self.print_type_app(name, arguments, module, GenericPrinting::AlwaysGeneric),
 
-            Type::Fn { arguments, return_ } => {
-                self.print_fn(arguments, return_, GenericPrinting::AlwaysGeneric)
-            }
+            Type::Fn {
+                arguments, return_, ..
+            } => self.print_fn(arguments, return_, GenericPrinting::AlwaysGeneric),
 
             Type::Tuple { elements } => tuple(
                 elements

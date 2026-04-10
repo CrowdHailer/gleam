@@ -474,6 +474,7 @@ impl ModuleInterface {
                     Type::Fn {
                         arguments,
                         return_: return_type,
+                        ..
                     },
                     ValueConstructorVariant::ModuleFn {
                         documentation,
@@ -559,7 +560,9 @@ impl TypeInterface {
 /// have the same id will also have the same incremental number in the end).
 fn from_type_helper(type_: &Type, id_map: &mut IdMap) -> TypeInterface {
     match type_ {
-        Type::Fn { arguments, return_ } => TypeInterface::Fn {
+        Type::Fn {
+            arguments, return_, ..
+        } => TypeInterface::Fn {
             parameters: arguments
                 .iter()
                 .map(|argument| from_type_helper(argument.as_ref(), id_map))

@@ -3337,7 +3337,9 @@ fn type_var_ids(type_: &Type, ids: &mut HashMap<u64, u64>) {
                 }
             }
         },
-        Type::Fn { arguments, return_ } => {
+        Type::Fn {
+            arguments, return_, ..
+        } => {
             for argument in arguments {
                 type_var_ids(argument, ids)
             }
@@ -3439,7 +3441,9 @@ impl<'a> TypePrinter<'a> {
                 ..
             } => self.print_type_app(module, name, arguments),
 
-            Type::Fn { arguments, return_ } => self.print_fn(arguments, return_),
+            Type::Fn {
+                arguments, return_, ..
+            } => self.print_fn(arguments, return_),
 
             Type::Tuple { elements } => tuple(elements.iter().map(|element| self.print(element))),
         }

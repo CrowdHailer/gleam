@@ -485,7 +485,9 @@ impl Printer<'_> {
                     ))
                 }
             }
-            Type::Fn { arguments, return_ } => docvec![
+            Type::Fn {
+                arguments, return_, ..
+            } => docvec![
                 self.keyword("fn"),
                 Self::type_arguments(
                     arguments
@@ -677,7 +679,9 @@ impl Printer<'_> {
                     self.register_local_type_variable_names(argument);
                 }
             }
-            Type::Fn { arguments, return_ } => {
+            Type::Fn {
+                arguments, return_, ..
+            } => {
                 for argument in arguments {
                     self.register_local_type_variable_names(argument);
                 }

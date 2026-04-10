@@ -1198,7 +1198,9 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
                     self.environment
                         .instantiate(constructor_type, &mut hashmap![], self.hydrator);
                 match instantiated_constructor_type.deref() {
-                    Type::Fn { arguments, return_ } => {
+                    Type::Fn {
+                        arguments, return_, ..
+                    } => {
                         self.unify_types(type_.clone(), return_.clone(), location);
 
                         if let Some((variable_to_infer, inferred_variant)) =

@@ -9,7 +9,7 @@ use crate::{
 };
 
 use super::{
-    ModuleInterface, Opaque, References, Type, TypeConstructor, TypeValueConstructor,
+    EffectRow, ModuleInterface, Opaque, References, Type, TypeConstructor, TypeValueConstructor,
     TypeValueConstructorField, TypeVar, TypeVariantConstructors, ValueConstructor,
     ValueConstructorVariant,
 };
@@ -158,7 +158,23 @@ pub fn tuple(elements: Vec<Arc<Type>>) -> Arc<Type> {
 }
 
 pub fn fn_(arguments: Vec<Arc<Type>>, return_: Arc<Type>) -> Arc<Type> {
-    Arc::new(Type::Fn { return_, arguments })
+    Arc::new(Type::Fn {
+        return_,
+        arguments,
+        effects: EffectRow::default(),
+    })
+}
+
+pub fn fn_with_effects(
+    arguments: Vec<Arc<Type>>,
+    return_: Arc<Type>,
+    effects: EffectRow,
+) -> Arc<Type> {
+    Arc::new(Type::Fn {
+        return_,
+        arguments,
+        effects,
+    })
 }
 
 pub fn named(

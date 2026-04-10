@@ -504,7 +504,9 @@ impl<'a> Printer<'a> {
                 }
             }
 
-            Type::Fn { arguments, return_ } => {
+            Type::Fn {
+                arguments, return_, ..
+            } => {
                 buffer.push_str("fn(");
                 self.print_arguments(arguments, buffer, print_mode);
                 buffer.push_str(") -> ");
@@ -722,6 +724,7 @@ fn test_fn_type() {
     let mut printer = Printer::new(&names);
 
     let type_ = Type::Fn {
+        effects: crate::type_::EffectRow::default(),
         arguments: vec![
             Arc::new(Type::Named {
                 name: "Int".into(),

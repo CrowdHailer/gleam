@@ -615,12 +615,17 @@ impl RemapIds {
                     .collect(),
                 inferred_variant,
             },
-            Type::Fn { arguments, return_ } => Type::Fn {
+            Type::Fn {
+                arguments,
+                return_,
+                effects,
+            } => Type::Fn {
                 arguments: arguments
                     .into_iter()
                     .map(|argument| self.type_(argument))
                     .collect(),
                 return_: self.type_(return_),
+                effects,
             },
             Type::Var { type_ } => return self.type_var(&type_.borrow()),
 
