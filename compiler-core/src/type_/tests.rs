@@ -24,6 +24,7 @@ mod conditional_compilation;
 mod custom_types;
 mod dead_code_detection;
 mod echo;
+mod effects;
 mod errors;
 mod exhaustiveness;
 mod externals;

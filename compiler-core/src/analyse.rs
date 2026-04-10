@@ -7,13 +7,13 @@ mod tests;
 use crate::{
     GLEAM_CORE_PACKAGE_NAME, STDLIB_PACKAGE_NAME,
     ast::{
-        self, Arg, BitArrayOption, CustomType, DefinitionLocation, Function, GroupedDefinitions,
-        Import, ModuleConstant, Publicity, RecordConstructor, RecordConstructorArg, SrcSpan,
-        Statement, TypeAlias, TypeAst, TypeAstConstructor, TypeAstFn, TypeAstHole, TypeAstTuple,
-        TypeAstVar, TypedCustomType, TypedDefinitions, TypedExpr, TypedFunction, TypedImport,
-        TypedModule, TypedModuleConstant, TypedTypeAlias, UntypedArg, UntypedCustomType,
-        UntypedFunction, UntypedImport, UntypedModule, UntypedModuleConstant, UntypedStatement,
-        UntypedTypeAlias,
+        self, Arg, BitArrayOption, CustomType, DefinitionLocation, EffectDefinition, Function,
+        GroupedDefinitions, Import, ModuleConstant, Publicity, RecordConstructor,
+        RecordConstructorArg, SrcSpan, Statement, TypeAlias, TypeAst, TypeAstConstructor,
+        TypeAstFn, TypeAstHole, TypeAstTuple, TypeAstVar, TypedCustomType, TypedDefinitions,
+        TypedExpr, TypedFunction, TypedImport, TypedModule, TypedModuleConstant, TypedTypeAlias,
+        UntypedArg, UntypedCustomType, UntypedFunction, UntypedImport, UntypedModule,
+        UntypedModuleConstant, UntypedStatement, UntypedTypeAlias,
     },
     build::{Origin, Outcome, Target},
     call_graph::{CallGraphNode, into_dependency_order},
@@ -24,10 +24,10 @@ use crate::{
     parse::SpannedString,
     reference::{EntityKind, ReferenceKind},
     type_::{
-        self, AccessorsMap, Deprecation, FieldMap, ModuleInterface, Opaque, PatternConstructor,
-        RecordAccessor, References, Type, TypeAliasConstructor, TypeConstructor,
-        TypeValueConstructor, TypeValueConstructorField, TypeVariantConstructors, ValueConstructor,
-        ValueConstructorVariant, Warning,
+        self, AccessorsMap, Deprecation, EffectLabel, EffectRow, FieldMap, ModuleInterface, Opaque,
+        PatternConstructor, RecordAccessor, References, Type, TypeAliasConstructor,
+        TypeConstructor, TypeValueConstructor, TypeValueConstructorField, TypeVariantConstructors,
+        ValueConstructor, ValueConstructorVariant, Warning,
         environment::*,
         error::{Error, FeatureKind, MissingAnnotation, Named, Problems, convert_unify_error},
         expression::{ExprTyper, FunctionDefinition, Implementations, Purity},
@@ -254,6 +254,12 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
         };
         for type_alias in sorted_aliases {
             self.register_type_alias(type_alias, &mut env);
+        }
+
+        // Register effect operations so they are callable from functions defined
+        // later in this module.
+        for effect in &definitions.effect_definitions {
+            self.register_effect(effect, &mut env);
         }
 
         for function in &definitions.functions {
@@ -1671,6 +1677,113 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
             *publicity,
             deprecation.clone(),
         );
+    }
+
+    /// Register the operations of an `effect` definition as callable functions
+    /// in the type environment.
+    ///
+    /// For `effect Store(a) { Get() -> a; Set(a) -> Nil }` this registers:
+    ///   `Get : fn() -> a + {Store}` and `Set : fn(a) -> Nil + {Store}`
+    fn register_effect(
+        &mut self,
+        effect: &EffectDefinition,
+        environment: &mut Environment<'_>,
+    ) {
+        let EffectDefinition {
+            name: effect_name,
+            parameters,
+            operations,
+            publicity,
+            ..
+        } = effect;
+
+        // Create type variables for the effect's type parameters (e.g. `a` in `Store(a)`).
+        let mut hydrator = Hydrator::new();
+        let _param_types = self.make_type_vars(parameters, &mut hydrator, environment);
+        hydrator.clear_ridgid_type_names();
+
+        // The EffectRow that each operation carries: a single closed row containing
+        // just this effect.
+        let effect_row = EffectRow {
+            effects: vec![EffectLabel {
+                module: self.module_name.clone(),
+                name: effect_name.clone(),
+            }],
+            var: None,
+        };
+
+        for operation in operations {
+            // Effect operations use UpperCamelCase like type constructors.
+            self.check_name_case(
+                operation.name_location,
+                &operation.name,
+                Named::CustomTypeVariant,
+            );
+
+            if let Err(error) =
+                assert_unique_name(&mut self.value_names, &operation.name, operation.location)
+            {
+                self.problems.error(error);
+                continue;
+            }
+
+            // Resolve argument types from the operation's type annotations.
+            let arg_types: Vec<Arc<Type>> = operation
+                .arguments
+                .iter()
+                .map(|ast| {
+                    hydrator
+                        .type_from_ast(ast, environment, &mut self.problems)
+                        .unwrap_or_else(|e| {
+                            self.problems.error(e);
+                            environment.new_unbound_var()
+                        })
+                })
+                .collect();
+
+            // Resolve return type.
+            let return_type = hydrator
+                .type_from_ast(&operation.return_type, environment, &mut self.problems)
+                .unwrap_or_else(|e| {
+                    self.problems.error(e);
+                    environment.new_unbound_var()
+                });
+
+            // Build the function type with this effect in its row, then generalise
+            // any remaining unbound type variables to generic ones.
+            let op_type =
+                type_::generalise(fn_with_effects(arg_types, return_type, effect_row.clone()));
+
+            let variant = ValueConstructorVariant::ModuleFn {
+                documentation: None,
+                name: operation.name.clone(),
+                field_map: None,
+                external_erlang: None,
+                external_javascript: None,
+                module: environment.current_module.clone(),
+                arity: operation.arguments.len(),
+                location: operation.location,
+                implementations: Implementations::supporting_all(),
+                purity: Purity::Impure,
+            };
+
+            environment.insert_variable(
+                operation.name.clone(),
+                variant.clone(),
+                op_type.clone(),
+                *publicity,
+                Deprecation::NotDeprecated,
+            );
+            environment.insert_module_value(
+                operation.name.clone(),
+                ValueConstructor {
+                    publicity: *publicity,
+                    deprecation: Deprecation::NotDeprecated,
+                    type_: op_type,
+                    variant,
+                },
+            );
+        }
     }
 
     fn check_for_type_leaks(&mut self, value: &ValueConstructor) {
