@@ -975,6 +975,23 @@ pub enum Imported {
     Value(EcoString),
 }
 
+/// Unify two effect rows.
+///
+/// Two closed rows are compatible only if they are equal (same set of effects).
+/// If either row is open (has a row-polymorphism variable) they are considered
+/// compatible for now; full open-row merging is handled in later tasks.
+///
+fn unify_effect_rows(row1: &EffectRow, row2: &EffectRow) -> Result<(), ()> {
+    if row1 == row2 {
+        return Ok(());
+    }
+    // Open rows can absorb extra concrete effects.
+    if row1.var.is_some() || row2.var.is_some() {
+        return Ok(());
+    }
+    Err(())
+}
+
 /// Unify two types that should be the same.
 /// Any unbound type variables will be linked to the other type as they are the same.
 ///
@@ -1099,12 +1116,12 @@ pub fn unify(t1: Arc<Type>, t2: Arc<Type>) -> Result<(), UnifyError> {
             Type::Fn {
                 arguments: arguments1,
                 return_: return1,
-                ..
+                effects: effects1,
             },
             Type::Fn {
                 arguments: arguments2,
                 return_: return2,
-                ..
+                effects: effects2,
             },
         ) => {
             if arguments1.len() != arguments2.len() {
@@ -1122,7 +1139,13 @@ pub fn unify(t1: Arc<Type>, t2: Arc<Type>) -> Result<(), UnifyError> {
             }
 
             unify(return1.clone(), return2.clone())
-                .map_err(|_| unify_wrong_returns(&t1, return1, &t2, return2))
+                .map_err(|_| unify_wrong_returns(&t1, return1, &t2, return2))?;
+
+            unify_effect_rows(effects1, effects2).map_err(|()| UnifyError::CouldNotUnify {
+                expected: t1.clone(),
+                given: t2.clone(),
+                situation: None,
+            })
         }
 
         _ => Err(UnifyError::CouldNotUnify {
@@ -1137,7 +1160,57 @@ pub fn unify(t1: Arc<Type>, t2: Arc<Type>) -> Result<(), UnifyError> {
 mod unify_tests {
     use std::{cell::RefCell, ops::Deref, sync::Arc};
 
-    use crate::type_::{Type, TypeVar, unify};
+    use crate::type_::{EffectLabel, EffectRow, Type, TypeVar, unify};
+    use super::unify_effect_rows;
+    use ecow::EcoString;
+
+    fn label(module: &str, name: &str) -> EffectLabel {
+        EffectLabel {
+            module: EcoString::from(module),
+            name: EcoString::from(name),
+        }
+    }
+
+    fn closed(effects: Vec<EffectLabel>) -> EffectRow {
+        EffectRow { effects, var: None }
+    }
+
+    fn open(effects: Vec<EffectLabel>, var: u64) -> EffectRow {
+        EffectRow { effects, var: Some(var) }
+    }
+
+    #[test]
+    fn effect_rows_equal_empty_closed() {
+        assert!(unify_effect_rows(&closed(vec![]), &closed(vec![])).is_ok());
+    }
+
+    #[test]
+    fn effect_rows_equal_nonempty_closed() {
+        let row = closed(vec![label("mymod", "Store")]);
+        assert!(unify_effect_rows(&row, &row.clone()).is_ok());
+    }
+
+    #[test]
+    fn effect_rows_different_closed_fail() {
+        let row1 = closed(vec![label("mymod", "Store")]);
+        let row2 = closed(vec![label("mymod", "Logger")]);
+        assert!(unify_effect_rows(&row1, &row2).is_err());
+    }
+
+    #[test]
+    fn effect_rows_one_open_succeeds() {
+        let open_row = open(vec![], 0);
+        let closed_row = closed(vec![label("mymod", "Store")]);
+        assert!(unify_effect_rows(&open_row, &closed_row).is_ok());
+        assert!(unify_effect_rows(&closed_row, &open_row).is_ok());
+    }
+
+    #[test]
+    fn effect_rows_both_open_succeeds() {
+        let row1 = open(vec![label("mymod", "Store")], 0);
+        let row2 = open(vec![label("mymod", "Logger")], 1);
+        assert!(unify_effect_rows(&row1, &row2).is_ok());
+    }
 
     // Repeated unification used to add a link to t1 for each branch
     // See https://github.com/gleam-lang/gleam/issues/4805

@@ -292,6 +292,10 @@ pub(crate) struct ExprTyper<'a, 'b> {
 
     pub(crate) implementations: Implementations,
     pub(crate) purity: Purity,
+    /// Accumulates the effect row of the function currently being type-checked.
+    /// Effects from every effectful call inside the function body are merged in
+    /// here so that the resulting `Type::Fn` carries the correct row.
+    pub(crate) current_effects: EffectRow,
     pub(crate) current_function_definition: FunctionDefinition,
 
     // Type hydrator for creating types from annotations
@@ -343,6 +347,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             environment,
             implementations,
             purity,
+            current_effects: EffectRow::default(),
             current_function_definition: definition,
             minimum_required_version: Version::new(0, 1, 0),
             problems,
@@ -1065,6 +1070,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         self.previous_panics = false;
 
         let outer_purity = self.purity;
+        let outer_effects = self.current_effects.clone();
 
         // If an anonymous function can panic, that doesn't mean that the outer
         // function can too, so we track the purity separately. For example, in
@@ -1086,6 +1092,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         // constructing and returning it does not have any side effects, so there is
         // no way for a call to `divide_partial` to produce any side effects.
         self.purity = Purity::Pure;
+        self.current_effects = EffectRow::default();
 
         let (arguments, body) = match self.do_infer_fn(
             None,
@@ -1101,7 +1108,8 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             }
         };
         let arguments_types = arguments.iter().map(|a| a.type_.clone()).collect();
-        let type_ = fn_(arguments_types, body.last().type_());
+        let function_effects = self.current_effects.clone();
+        let type_ = fn_with_effects(arguments_types, body.last().type_(), function_effects);
 
         // Defining an anonymous function never panics.
         self.already_warned_for_unreachable_code = already_warned_for_unreachable_code;
@@ -1109,6 +1117,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
 
         let function_purity = self.purity;
         self.purity = outer_purity;
+        self.current_effects = outer_effects;
 
         TypedExpr::Fn {
             location,
@@ -1222,6 +1231,11 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         }
 
         self.purity = self.purity.merge(fun.called_function_purity());
+
+        // Propagate the callee's effect row into the current function's row.
+        if let Type::Fn { effects, .. } = fun.type_().as_ref() {
+            self.current_effects.merge_from(effects);
+        }
 
         TypedExpr::Call {
             location,

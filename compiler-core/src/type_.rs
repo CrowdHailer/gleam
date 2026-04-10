@@ -76,6 +76,19 @@ impl EffectRow {
     pub fn is_empty(&self) -> bool {
         self.effects.is_empty() && self.var.is_none()
     }
+
+    /// Merge all effects from `other` into this row, avoiding duplicates.
+    /// If `other` carries an open row variable and `self` does not, adopt it.
+    pub fn merge_from(&mut self, other: &EffectRow) {
+        for effect in &other.effects {
+            if !self.effects.contains(effect) {
+                self.effects.push(effect.clone());
+            }
+        }
+        if other.var.is_some() && self.var.is_none() {
+            self.var = other.var;
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

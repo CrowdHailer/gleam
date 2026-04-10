@@ -102,6 +102,9 @@ impl<'a, 'b, 'c> PipeTyper<'a, 'b, 'c> {
 
                     self.expr_typer.purity =
                         self.expr_typer.purity.merge(func.called_function_purity());
+                    if let Type::Fn { effects, .. } = func.type_().as_ref() {
+                        self.expr_typer.current_effects.merge_from(effects);
+                    }
 
                     let kind = match kind {
                         FunctionLiteralKind::Capture { hole } => {
@@ -151,6 +154,9 @@ impl<'a, 'b, 'c> PipeTyper<'a, 'b, 'c> {
                         _ => {
                             self.expr_typer.purity =
                                 self.expr_typer.purity.merge(fun.called_function_purity());
+                            if let Type::Fn { effects, .. } = fun.type_().as_ref() {
+                                self.expr_typer.current_effects.merge_from(effects);
+                            }
                             (
                                 PipelineAssignmentKind::FirstArgument {
                                     second_argument: arguments.first().map(|arg| arg.location),
@@ -364,6 +370,9 @@ impl<'a, 'b, 'c> PipeTyper<'a, 'b, 'c> {
             .expr_typer
             .purity
             .merge(function.called_function_purity());
+        if let Type::Fn { effects, .. } = function.type_().as_ref() {
+            self.expr_typer.current_effects.merge_from(effects);
+        }
 
         let return_type = self.expr_typer.new_unbound_var();
         // Ensure that the function accepts one argument of the correct type

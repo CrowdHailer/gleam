@@ -684,7 +684,7 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
                 expr_typer.purity
             };
 
-            let type_ = fn_(arguments_types, return_type);
+            let type_ = fn_with_effects(arguments_types, return_type, expr_typer.current_effects);
             Ok((
                 type_,
                 body,
