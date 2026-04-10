@@ -849,7 +849,8 @@ fn string_concatenate_argument<'a>(value: &'a TypedExpr, env: &mut Env<'a>) -> D
         | TypedExpr::RecordUpdate { .. }
         | TypedExpr::NegateBool { .. }
         | TypedExpr::NegateInt { .. }
-        | TypedExpr::Invalid { .. } => docvec!["(", maybe_block_expr(value, env), ")/binary"],
+        | TypedExpr::Invalid { .. }
+        | TypedExpr::Handle { .. } => docvec!["(", maybe_block_expr(value, env), ")/binary"],
     }
 }
 
@@ -1177,7 +1178,8 @@ fn bit_array_expression_segment_value<'a>(value: &'a TypedExpr, env: &mut Env<'a
         | TypedExpr::RecordUpdate { .. }
         | TypedExpr::NegateBool { .. }
         | TypedExpr::NegateInt { .. }
-        | TypedExpr::Invalid { .. } => expr(value, env).surround("(", ")"),
+        | TypedExpr::Invalid { .. }
+        | TypedExpr::Handle { .. } => expr(value, env).surround("(", ")"),
     }
 }
 
@@ -2292,7 +2294,8 @@ fn docs_arguments_call<'a>(
         | TypedExpr::RecordUpdate { .. }
         | TypedExpr::NegateBool { .. }
         | TypedExpr::NegateInt { .. }
-        | TypedExpr::Invalid { .. } => {
+        | TypedExpr::Invalid { .. }
+        | TypedExpr::Handle { .. } => {
             let arguments = wrap_arguments(arguments);
             maybe_block_expr(fun, env).append(arguments)
         }
@@ -2366,7 +2369,8 @@ fn needs_begin_end_wrapping(expression: &TypedExpr) -> bool {
         | TypedExpr::BitArray { .. }
         | TypedExpr::NegateBool { .. }
         | TypedExpr::NegateInt { .. }
-        | TypedExpr::Invalid { .. } => false,
+        | TypedExpr::Invalid { .. }
+        | TypedExpr::Handle { .. } => false,
     }
 }
 
@@ -2560,6 +2564,10 @@ fn expr<'a>(expression: &'a TypedExpr, env: &mut Env<'a>) -> Document<'a> {
         ),
 
         TypedExpr::Invalid { .. } => panic!("invalid expressions should not reach code generation"),
+
+        TypedExpr::Handle { .. } => {
+            panic!("handle expressions are not yet supported in the Erlang backend (Phase 4)")
+        }
     }
 }
 
@@ -2754,7 +2762,8 @@ fn assert<'a>(assert: &'a TypedAssert, env: &mut Env<'a>) -> Document<'a> {
         | TypedExpr::RecordUpdate { .. }
         | TypedExpr::NegateBool { .. }
         | TypedExpr::NegateInt { .. }
-        | TypedExpr::Invalid { .. } => (
+        | TypedExpr::Invalid { .. }
+        | TypedExpr::Handle { .. } => (
             maybe_block_expr(value, env),
             vec![
                 ("kind", atom("expression")),

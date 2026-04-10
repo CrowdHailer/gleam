@@ -1,4 +1,5 @@
 use crate::{
+    assert_module_error,
     assert_module_infer,
     type_::Type,
     type_::tests::compile_module,
@@ -170,4 +171,87 @@ pub fn add(x: Int, y: Int) -> Int {
         }
         other => panic!("expected Fn type, got {:?}", other),
     }
+}
+
+/// A handle expression with only a Return clause type-checks and returns the
+/// value produced by the Return clause body.
+#[test]
+fn handle_return_clause_only() {
+    assert_module_infer!(
+        r#"
+pub effect Store(a) {
+  Get() -> a
+}
+
+pub fn run() -> Int {
+  handle 42 with Nil {
+    Return(v) -> v
+  }
+}
+"#,
+        vec![("Get", "fn() -> a"), ("run", "fn() -> Int")]
+    );
+}
+
+/// A handle expression with one effect clause type-checks correctly.
+#[test]
+fn handle_with_one_effect_clause() {
+    assert_module_infer!(
+        r#"
+pub effect Store(a) {
+  Get() -> a
+  Set(a) -> Nil
+}
+
+pub fn run() -> Int {
+  handle Get() with Nil {
+    Store.Get(resume) -> resume(0, Nil)
+    Return(v) -> v
+  }
+}
+"#,
+        vec![
+            ("Get", "fn() -> a"),
+            ("Set", "fn(a) -> Nil"),
+            ("run", "fn() -> Int")
+        ]
+    );
+}
+
+/// A handle clause referencing an operation that does not exist produces an error.
+#[test]
+fn handle_clause_unknown_operation() {
+    assert_module_error!(
+        r#"
+pub effect Store(a) {
+  Get() -> a
+}
+
+pub fn run() -> Int {
+  handle Get() with Nil {
+    Store.DoesNotExist(resume) -> resume(0, Nil)
+    Return(v) -> v
+  }
+}
+"#
+    );
+}
+
+/// A handle clause with the wrong number of arguments produces an error.
+#[test]
+fn handle_clause_wrong_arity() {
+    assert_module_error!(
+        r#"
+pub effect Store(a) {
+  Get() -> a
+}
+
+pub fn run() -> Int {
+  handle Get() with Nil {
+    Store.Get(extra_arg, resume) -> resume(0, Nil)
+    Return(v) -> v
+  }
+}
+"#
+    );
 }

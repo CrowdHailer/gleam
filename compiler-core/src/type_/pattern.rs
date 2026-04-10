@@ -382,7 +382,8 @@ impl<'a, 'b> PatternTyper<'a, 'b> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => None,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => None,
         }
     }
 

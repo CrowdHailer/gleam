@@ -1083,7 +1083,8 @@ impl<'a, IO> Completer<'a, IO> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => None,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => None,
         }
     }
 

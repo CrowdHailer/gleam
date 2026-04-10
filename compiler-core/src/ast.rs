@@ -1316,6 +1316,36 @@ pub struct HandleExpression {
     pub return_clause: Box<EffectReturnClause>,
 }
 
+/// Typed version of [`EffectClause`] — produced by the type-checker.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypedEffectClause {
+    pub location: SrcSpan,
+    pub effect_name: EcoString,
+    pub operation_name: EcoString,
+    /// Names bound to the operation's arguments (same order as the untyped clause).
+    pub argument_names: Vec<EcoString>,
+    /// Resolved types of the operation's arguments.
+    pub argument_types: Vec<Arc<Type>>,
+    /// Name bound to the resume continuation.
+    pub resume_name: EcoString,
+    /// Type inferred for the resume continuation (unbound var in 2.4a, refined in 2.4b).
+    pub resume_type: Arc<Type>,
+    /// Type-checked clause body.
+    pub body: TypedExpr,
+}
+
+/// Typed version of [`EffectReturnClause`] — produced by the type-checker.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypedEffectReturnClause {
+    pub location: SrcSpan,
+    /// Name bound to the computation's final return value.
+    pub value_name: EcoString,
+    /// Type of the final return value.
+    pub value_type: Arc<Type>,
+    /// Type-checked clause body.
+    pub body: TypedExpr,
+}
+
 pub type UntypedDefinition = Definition<(), UntypedExpr, (), ()>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1838,7 +1868,8 @@ impl CallArg<TypedExpr> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => false,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => false,
         }
     }
 }
@@ -2314,7 +2345,8 @@ fn pattern_and_expression_are_the_same(pattern: &TypedPattern, expression: &Type
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => false,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => false,
         },
 
         // A pattern for a constructor with no arguments:

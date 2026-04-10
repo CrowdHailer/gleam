@@ -390,6 +390,10 @@ impl<'module, 'a> Generator<'module, 'a> {
             TypedExpr::Invalid { .. } => {
                 panic!("invalid expressions should not reach code generation")
             }
+
+            TypedExpr::Handle { .. } => {
+                panic!("handle expressions are not yet supported in the JavaScript backend (Phase 3)")
+            }
         };
         if expression.handles_own_return() {
             document
@@ -626,7 +630,8 @@ impl<'module, 'a> Generator<'module, 'a> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => return self.wrap_expression(expression),
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => return self.wrap_expression(expression),
         }
 
         let document = self.expression(expression);
@@ -1081,7 +1086,8 @@ impl<'module, 'a> Generator<'module, 'a> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => (
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => (
                 self.wrap_expression(subject),
                 vec![
                     ("kind", string("expression")),
@@ -1163,7 +1169,8 @@ impl<'module, 'a> Generator<'module, 'a> {
             | TypedExpr::BitArray { .. }
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => docvec!["!", self.wrap_expression(value)],
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => docvec!["!", self.wrap_expression(value)],
         }
     }
 
@@ -1490,7 +1497,8 @@ impl<'module, 'a> Generator<'module, 'a> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => {
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => {
                 let fun = self.not_in_tail_position(None, |this| -> Document<'_> {
                     let is_fn_literal = matches!(fun, TypedExpr::Fn { .. });
                     let fun = this.wrap_expression(fun);
@@ -1777,7 +1785,8 @@ impl<'module, 'a> Generator<'module, 'a> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => None,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => None,
         }
     }
 
@@ -2718,7 +2727,8 @@ impl TypedExpr {
             | TypedExpr::BitArray { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => false,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => false,
         }
     }
 }
@@ -2792,7 +2802,8 @@ fn expression_requires_semicolon(expression: &TypedExpr) -> bool {
         | TypedExpr::Panic { .. }
         | TypedExpr::Pipeline { .. }
         | TypedExpr::RecordUpdate { .. }
-        | TypedExpr::Invalid { .. } => false,
+        | TypedExpr::Invalid { .. }
+        | TypedExpr::Handle { .. } => false,
     }
 }
 

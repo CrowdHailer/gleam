@@ -702,6 +702,52 @@ pub enum Error {
     RecordUpdateVariantWithNoFields {
         location: SrcSpan,
     },
+
+    /// When a `handle` clause names an operation that does not exist in the type
+    /// environment, or the name exists but is not an effect operation.
+    ///
+    /// For example:
+    ///
+    /// ```gleam
+    /// handle fetch() with Nil {
+    ///   Http.Unknown(_, resume) -> ...  // Unknown is not an effect operation
+    /// }
+    /// ```
+    ///
+    HandleClauseNotAnEffect {
+        location: SrcSpan,
+        name: EcoString,
+    },
+
+    /// When a `handle` clause names an operation but the effect prefix doesn't
+    /// match the actual effect the operation belongs to.
+    ///
+    /// For example:
+    ///
+    /// ```gleam
+    /// handle fetch() with Nil {
+    ///   Disk.Get(url, resume) -> ...  // Get belongs to Http, not Disk
+    /// }
+    /// ```
+    ///
+    HandleClauseEffectMismatch {
+        location: SrcSpan,
+        /// The effect name written in the clause (e.g. `Disk`).
+        clause_effect: EcoString,
+        /// The effect name the operation actually belongs to (e.g. `Http`).
+        actual_effect: EcoString,
+    },
+
+    /// When a `handle` clause provides the wrong number of argument bindings
+    /// for the operation's parameter list.
+    ///
+    HandleClauseWrongArity {
+        location: SrcSpan,
+        /// Number of parameters the effect operation declares.
+        expected: usize,
+        /// Number of argument bindings the clause provides.
+        given: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1371,7 +1417,10 @@ impl Error {
             | Error::ExternalTypeWithConstructors { location, .. }
             | Error::RecordUpdateVariantWithNoFields { location }
             | Error::QualifiedTypeMissingName { location }
-            | Error::LowercaseBoolPattern { location } => location.start,
+            | Error::LowercaseBoolPattern { location }
+            | Error::HandleClauseNotAnEffect { location, .. }
+            | Error::HandleClauseEffectMismatch { location, .. }
+            | Error::HandleClauseWrongArity { location, .. } => location.start,
             Error::UnknownLabels { unknown, .. } => {
                 unknown.iter().map(|(_, s)| s.start).min().unwrap_or(0)
             }

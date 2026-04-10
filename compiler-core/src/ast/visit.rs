@@ -1378,6 +1378,7 @@ where
             type_,
         } => v.visit_typed_expr_echo(location, type_, expression, message),
         TypedExpr::PositionalAccess { .. } => {}
+        TypedExpr::Handle { .. } => {}
     }
 }
 

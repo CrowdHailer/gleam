@@ -4,15 +4,15 @@ use crate::{
     analyse::{Inferred, infer_bit_array_option, name::check_argument_names},
     ast::{
         Arg, Assert, Assignment, AssignmentKind, BinOp, BitArrayOption, BitArraySegment,
-        CAPTURE_VARIABLE, CallArg, Clause, ClauseGuard, Constant, FunctionLiteralKind, HasLocation,
-        ImplicitCallArgOrigin, InvalidExpression, Layer, RECORD_UPDATE_VARIABLE,
-        RecordBeingUpdated, SrcSpan, Statement, TodoKind, TypeAst, TypedArg, TypedAssert,
-        TypedAssignment, TypedClause, TypedClauseGuard, TypedConstant, TypedExpr,
-        TypedMultiPattern, TypedStatement, USE_ASSIGNMENT_VARIABLE, UntypedArg, UntypedAssert,
-        UntypedAssignment, UntypedClause, UntypedClauseGuard, UntypedConstant,
-        UntypedConstantBitArraySegment, UntypedExpr, UntypedExprBitArraySegment,
-        UntypedMultiPattern, UntypedStatement, UntypedUse, UntypedUseAssignment, Use,
-        UseAssignment,
+        CAPTURE_VARIABLE, CallArg, Clause, ClauseGuard, Constant, EffectClause, EffectReturnClause,
+        FunctionLiteralKind, HandleExpression, HasLocation, ImplicitCallArgOrigin,
+        InvalidExpression, Layer, RECORD_UPDATE_VARIABLE, RecordBeingUpdated, SrcSpan, Statement,
+        TodoKind, TypeAst, TypedArg, TypedAssert, TypedAssignment, TypedClause, TypedClauseGuard,
+        TypedConstant, TypedEffectClause, TypedEffectReturnClause, TypedExpr, TypedMultiPattern,
+        TypedStatement, USE_ASSIGNMENT_VARIABLE, UntypedArg, UntypedAssert, UntypedAssignment,
+        UntypedClause, UntypedClauseGuard, UntypedConstant, UntypedConstantBitArraySegment,
+        UntypedExpr, UntypedExprBitArraySegment, UntypedMultiPattern, UntypedStatement,
+        UntypedUse, UntypedUseAssignment, Use, UseAssignment,
     },
     build::Target,
     exhaustiveness::{self, CompileCaseResult, CompiledCase, Reachability},
@@ -558,16 +558,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                 Ok(self.infer_negate_int(location, *value))
             }
 
-            UntypedExpr::Handle(h) => {
-                // Type checking of handle expressions is not yet implemented (Phase 2).
-                // For now, emit a todo-style error so the compiler doesn't crash.
-                Ok(TypedExpr::Todo {
-                    location: h.location,
-                    kind: crate::ast::TodoKind::Keyword,
-                    message: None,
-                    type_: crate::type_::int(),
-                })
-            }
+            UntypedExpr::Handle(h) => Ok(self.infer_handle(h)),
         }
     }
 
@@ -1212,7 +1203,8 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => None,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => None,
         };
         if let Some((location, kind)) = todopanic {
             let arguments_location = match (arguments.first(), arguments.last()) {
@@ -2409,6 +2401,282 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
         }
     }
 
+    /// Type-check a `handle computation() with state { ... }` expression.
+    ///
+    /// 2.4a: infer computation, verify each clause operation exists and belongs
+    ///        to the stated effect, bind arguments and resume, check clause bodies.
+    /// 2.4b: TODO — infer the correct type for the `resume` continuation.
+    /// 2.4c: TODO — subtract handled effects from the computation's effect row.
+    ///
+    fn infer_handle(
+        &mut self,
+        h: HandleExpression,
+    ) -> TypedExpr {
+        let HandleExpression {
+            location,
+            computation,
+            initial_state,
+            effect_clauses,
+            return_clause,
+        } = h;
+
+        // 1. Infer the computation expression.
+        let typed_computation = self.infer(*computation);
+        let computation_return_type = match typed_computation.type_().as_ref() {
+            Type::Fn { return_, .. } => return_.clone(),
+            _ => typed_computation.type_(),
+        };
+
+        // 2. Infer the initial state.
+        let typed_initial_state = self.infer(*initial_state);
+        let state_type = typed_initial_state.type_();
+
+        // 3. All handler clause bodies and the return clause body must produce
+        //    the same type — the overall type of the handle expression.
+        let return_type = self.new_unbound_var();
+
+        // 4. Type-check each effect clause.
+        let mut typed_effect_clauses = Vec::with_capacity(effect_clauses.len());
+
+        for clause in effect_clauses {
+            let EffectClause {
+                location: clause_location,
+                effect_name,
+                effect_name_location,
+                operation_name,
+                operation_name_location,
+                arguments: arg_bindings,
+                resume,
+                body,
+            } = clause;
+
+            // Look up the operation in the current scope.
+            let operation_type = match self.environment.get_variable(&operation_name).cloned() {
+                Some(vc) => vc.type_.clone(),
+                None => {
+                    self.problems.error(Error::HandleClauseNotAnEffect {
+                        location: operation_name_location,
+                        name: operation_name.clone(),
+                    });
+                    // Bind a fresh unbound var and skip this clause's body.
+                    typed_effect_clauses.push(TypedEffectClause {
+                        location: clause_location,
+                        effect_name,
+                        operation_name,
+                        argument_names: arg_bindings.iter().map(|a| a.1.clone()).collect(),
+                        argument_types: arg_bindings.iter().map(|_| self.new_unbound_var()).collect(),
+                        resume_name: resume.1.clone(),
+                        resume_type: self.new_unbound_var(),
+                        body: self.error_expr(clause_location),
+                    });
+                    continue;
+                }
+            };
+
+            // Instantiate the operation type so it has fresh type vars.
+            let mut ids = im::HashMap::new();
+            let operation_type = self.instantiate(operation_type, &mut ids);
+
+            // Verify it is an effect operation: must be a Fn with a non-empty effect row.
+            let (arg_types, _op_return_type, op_effect_row) =
+                match operation_type.as_ref() {
+                    Type::Fn { arguments, return_, effects } => {
+                        (arguments.clone(), return_.clone(), effects.clone())
+                    }
+                    _ => {
+                        self.problems.error(Error::HandleClauseNotAnEffect {
+                            location: operation_name_location,
+                            name: operation_name.clone(),
+                        });
+                        typed_effect_clauses.push(TypedEffectClause {
+                            location: clause_location,
+                            effect_name,
+                            operation_name,
+                            argument_names: arg_bindings.iter().map(|a| a.1.clone()).collect(),
+                            argument_types: arg_bindings.iter().map(|_| self.new_unbound_var()).collect(),
+                            resume_name: resume.1.clone(),
+                            resume_type: self.new_unbound_var(),
+                            body: self.error_expr(clause_location),
+                        });
+                        continue;
+                    }
+                };
+
+            if op_effect_row.is_empty() {
+                self.problems.error(Error::HandleClauseNotAnEffect {
+                    location: operation_name_location,
+                    name: operation_name.clone(),
+                });
+                typed_effect_clauses.push(TypedEffectClause {
+                    location: clause_location,
+                    effect_name,
+                    operation_name,
+                    argument_names: arg_bindings.iter().map(|a| a.1.clone()).collect(),
+                    argument_types: arg_bindings.iter().map(|_| self.new_unbound_var()).collect(),
+                    resume_name: resume.1.clone(),
+                    resume_type: self.new_unbound_var(),
+                    body: self.error_expr(clause_location),
+                });
+                continue;
+            }
+
+            // Verify the effect name matches.
+            // The effect row should contain exactly one label; check its name.
+            if let Some(label) = op_effect_row.effects.first() {
+                if label.name != effect_name {
+                    self.problems.error(Error::HandleClauseEffectMismatch {
+                        location: effect_name_location,
+                        clause_effect: effect_name.clone(),
+                        actual_effect: label.name.clone(),
+                    });
+                    // Continue anyway with the actual arg types, so we can still type-check the body.
+                }
+            }
+
+            // Verify argument count.
+            if arg_bindings.len() != arg_types.len() {
+                self.problems.error(Error::HandleClauseWrongArity {
+                    location: clause_location,
+                    expected: arg_types.len(),
+                    given: arg_bindings.len(),
+                });
+                typed_effect_clauses.push(TypedEffectClause {
+                    location: clause_location,
+                    effect_name,
+                    operation_name,
+                    argument_names: arg_bindings.iter().map(|a| a.1.clone()).collect(),
+                    argument_types: arg_types,
+                    resume_name: resume.1.clone(),
+                    resume_type: self.new_unbound_var(),
+                    body: self.error_expr(clause_location),
+                });
+                continue;
+            }
+
+            // Type-check the clause body in a new scope with argument bindings.
+            let arg_types_clone = arg_types.clone();
+            let arg_names: Vec<EcoString> = arg_bindings.iter().map(|a| a.1.clone()).collect();
+            let arg_locations: Vec<SrcSpan> = arg_bindings.iter().map(|a| a.0).collect();
+            let resume_name = resume.1.clone();
+            let resume_location = resume.0;
+
+            // 2.4b (TODO): the correct resume type is
+            //   fn(op_return_type, state_type) -> return_type
+            // For now we use an unbound var to avoid blocking type-checking.
+            let resume_type = self.new_unbound_var();
+            let _ = state_type.clone();
+
+            let typed_body = self.value_in_new_scope(|this| {
+                // Bind operation arguments.
+                for (name, (type_, loc)) in arg_names.iter().zip(arg_types_clone.iter().zip(arg_locations.iter())) {
+                    let origin = VariableOrigin {
+                        syntax: VariableSyntax::Variable(name.clone()),
+                        declaration: VariableDeclaration::ClausePattern,
+                    };
+                    this.environment.insert_local_variable(
+                        name.clone(),
+                        *loc,
+                        origin.clone(),
+                        type_.clone(),
+                    );
+                    this.environment.init_usage(name.clone(), origin, *loc, this.problems);
+                }
+
+                // Bind `resume`.
+                let resume_origin = VariableOrigin {
+                    syntax: VariableSyntax::Variable(resume_name.clone()),
+                    declaration: VariableDeclaration::ClausePattern,
+                };
+                this.environment.insert_local_variable(
+                    resume_name.clone(),
+                    resume_location,
+                    resume_origin.clone(),
+                    resume_type.clone(),
+                );
+                this.environment.init_usage(
+                    resume_name.clone(),
+                    resume_origin,
+                    resume_location,
+                    this.problems,
+                );
+
+                this.infer(body)
+            });
+
+            // Unify clause body type with the expected return type.
+            if let Err(err) = unify(return_type.clone(), typed_body.type_()) {
+                self.problems.error(
+                    err.case_clause_mismatch(clause_location)
+                        .into_error(typed_body.type_defining_location()),
+                );
+            }
+
+            typed_effect_clauses.push(TypedEffectClause {
+                location: clause_location,
+                effect_name,
+                operation_name,
+                argument_names: arg_names,
+                argument_types: arg_types,
+                resume_name,
+                resume_type,
+                body: typed_body,
+            });
+        }
+
+        // 5. Type-check the return clause.
+        let EffectReturnClause {
+            location: return_clause_location,
+            value: value_binding,
+            body: return_body,
+        } = *return_clause;
+
+        let value_name = value_binding.1.clone();
+        let value_location = value_binding.0;
+        let value_type = computation_return_type.clone();
+
+        let typed_return_body = self.value_in_new_scope(|this| {
+            let origin = VariableOrigin {
+                syntax: VariableSyntax::Variable(value_name.clone()),
+                declaration: VariableDeclaration::ClausePattern,
+            };
+            this.environment.insert_local_variable(
+                value_name.clone(),
+                value_location,
+                origin.clone(),
+                value_type.clone(),
+            );
+            this.environment.init_usage(
+                value_name.clone(),
+                origin,
+                value_location,
+                this.problems,
+            );
+            this.infer(return_body)
+        });
+
+        // Unify the return clause body type with the overall return type.
+        if let Err(err) = unify(return_type.clone(), typed_return_body.type_()) {
+            self.problems.error(
+                err.case_clause_mismatch(return_clause_location)
+                    .into_error(typed_return_body.type_defining_location()),
+            );
+        }
+
+        TypedExpr::Handle {
+            location,
+            type_: return_type,
+            computation: Box::new(typed_computation),
+            initial_state: Box::new(typed_initial_state),
+            effect_clauses: typed_effect_clauses,
+            return_clause: Box::new(TypedEffectReturnClause {
+                location: return_clause_location,
+                value_name,
+                value_type: computation_return_type,
+                body: typed_return_body,
+            }),
+        }
+    }
+
     /// Returns a tuple with the typed clause and a bool that is true if an error
     /// was encountered while typing the clause patterns.
     ///
@@ -3054,7 +3322,8 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => {
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => {
                 return Err(Error::RecordUpdateInvalidConstructor {
                     location: typed_constructor.location(),
                 });
@@ -4500,7 +4769,8 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => return Ok(None),
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => return Ok(None),
         };
 
         Ok(self
@@ -5253,7 +5523,8 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => (),
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => (),
         }
     }
 
@@ -5540,7 +5811,8 @@ fn check_subject_for_redundant_match(
         | TypedExpr::RecordUpdate { .. }
         | TypedExpr::NegateBool { .. }
         | TypedExpr::NegateInt { .. }
-        | TypedExpr::Invalid { .. } => match subject.record_constructor_arity() {
+        | TypedExpr::Invalid { .. }
+        | TypedExpr::Handle { .. } => match subject.record_constructor_arity() {
             // We make sure to not emit warnings if the case is being used like an
             // if expression:
             // ```gleam

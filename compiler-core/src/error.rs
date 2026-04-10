@@ -4250,6 +4250,72 @@ See: https://tour.gleam.run/basics/bools/"
                             extra_labels: vec![],
                         }),
                     },
+
+                    TypeError::HandleClauseNotAnEffect { location, name } => Diagnostic {
+                        title: "Unknown effect operation".into(),
+                        text: format!("`{name}` is not a known effect operation."),
+                        hint: None,
+                        level: Level::Error,
+                        location: Some(Location {
+                            label: Label {
+                                text: Some("This is not an effect operation".into()),
+                                span: *location,
+                            },
+                            path: path.clone(),
+                            src: src.clone(),
+                            extra_labels: vec![],
+                        }),
+                    },
+
+                    TypeError::HandleClauseEffectMismatch {
+                        location,
+                        clause_effect,
+                        actual_effect,
+                    } => Diagnostic {
+                        title: "Wrong effect name in handle clause".into(),
+                        text: format!(
+                            "This operation belongs to the `{actual_effect}` effect, \
+                             not `{clause_effect}`."
+                        ),
+                        hint: Some(format!("Try `{actual_effect}.` instead.")),
+                        level: Level::Error,
+                        location: Some(Location {
+                            label: Label {
+                                text: Some(format!(
+                                    "Expected `{actual_effect}` here, found `{clause_effect}`"
+                                )),
+                                span: *location,
+                            },
+                            path: path.clone(),
+                            src: src.clone(),
+                            extra_labels: vec![],
+                        }),
+                    },
+
+                    TypeError::HandleClauseWrongArity {
+                        location,
+                        expected,
+                        given,
+                    } => Diagnostic {
+                        title: "Wrong number of arguments in handle clause".into(),
+                        text: format!(
+                            "This effect operation takes {expected} argument(s), \
+                             but {given} binding(s) were provided."
+                        ),
+                        hint: None,
+                        level: Level::Error,
+                        location: Some(Location {
+                            label: Label {
+                                text: Some(format!(
+                                    "Expected {expected} argument(s), got {given}"
+                                )),
+                                span: *location,
+                            },
+                            path: path.clone(),
+                            src: src.clone(),
+                            extra_labels: vec![],
+                        }),
+                    },
                 })
                 .collect_vec(),
 

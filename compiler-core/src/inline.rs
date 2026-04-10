@@ -717,6 +717,9 @@ impl Inliner<'_> {
                 constructor: self.boxed_expression(constructor),
                 arguments: self.arguments(arguments),
             },
+
+            // Handle expressions are passed through unchanged (no inlining opportunities).
+            TypedExpr::Handle { .. } => expression,
         }
     }
 
@@ -926,7 +929,8 @@ impl Inliner<'_> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => function,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => function,
         };
 
         TypedExpr::Call {
@@ -1431,7 +1435,8 @@ fn expand_block(expression: TypedExpr) -> TypedExpr {
         | TypedExpr::RecordUpdate { .. }
         | TypedExpr::NegateBool { .. }
         | TypedExpr::NegateInt { .. }
-        | TypedExpr::Invalid { .. } => expression,
+        | TypedExpr::Invalid { .. }
+        | TypedExpr::Handle { .. } => expression,
     }
 }
 
@@ -1666,7 +1671,8 @@ impl FunctionToInlinable {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => None,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => None,
         }
     }
 

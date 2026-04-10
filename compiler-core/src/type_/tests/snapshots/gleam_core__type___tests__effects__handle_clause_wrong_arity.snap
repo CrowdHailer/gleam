@@ -1,0 +1,27 @@
+---
+source: compiler-core/src/type_/tests/effects.rs
+expression: "\npub effect Store(a) {\n  Get() -> a\n}\n\npub fn run() -> Int {\n  handle Get() with Nil {\n    Store.Get(extra_arg, resume) -> resume(0, Nil)\n    Return(v) -> v\n  }\n}\n"
+snapshot_kind: text
+---
+----- SOURCE CODE
+
+pub effect Store(a) {
+  Get() -> a
+}
+
+pub fn run() -> Int {
+  handle Get() with Nil {
+    Store.Get(extra_arg, resume) -> resume(0, Nil)
+    Return(v) -> v
+  }
+}
+
+
+----- ERROR
+error: Wrong number of arguments in handle clause
+  ┌─ /src/one/two.gleam:8:5
+  │
+8 │     Store.Get(extra_arg, resume) -> resume(0, Nil)
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected 0 argument(s), got 1
+
+This effect operation takes 0 argument(s), but 1 binding(s) were provided.

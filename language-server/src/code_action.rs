@@ -3523,6 +3523,7 @@ impl<'ast> ast::visit::Visit<'ast> for ExtractVariable<'ast> {
             | TypedExpr::ModuleSelect { .. }
             | TypedExpr::Invalid { .. }
             | TypedExpr::PositionalAccess { .. }
+            | TypedExpr::Handle { .. }
             | TypedExpr::Var { .. } => (),
 
             TypedExpr::Int { location, .. }
@@ -3865,7 +3866,8 @@ fn can_be_constant(
         | TypedExpr::RecordUpdate { .. }
         | TypedExpr::NegateBool { .. }
         | TypedExpr::NegateInt { .. }
-        | TypedExpr::Invalid { .. } => false,
+        | TypedExpr::Invalid { .. }
+        | TypedExpr::Handle { .. } => false,
     }
 }
 
@@ -4075,7 +4077,8 @@ impl<'ast> ast::visit::Visit<'ast> for ExtractConstant<'ast> {
                 | TypedExpr::RecordUpdate { .. }
                 | TypedExpr::NegateBool { .. }
                 | TypedExpr::NegateInt { .. }
-                | TypedExpr::Invalid { .. } => None,
+                | TypedExpr::Invalid { .. }
+                | TypedExpr::Handle { .. } => None,
             };
 
             self.selected_expression = Some(expr_location);
@@ -6477,7 +6480,8 @@ impl<'ast> ast::visit::Visit<'ast> for GenerateFunction<'ast> {
                 | TypedExpr::RecordUpdate { .. }
                 | TypedExpr::NegateBool { .. }
                 | TypedExpr::NegateInt { .. }
-                | TypedExpr::Invalid { .. } => {}
+                | TypedExpr::Invalid { .. }
+                | TypedExpr::Handle { .. } => {}
             }
         }
         ast::visit::visit_typed_expr_call(
@@ -7017,7 +7021,8 @@ impl NameGenerator {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => None,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => None,
         }
     }
 
@@ -8444,7 +8449,8 @@ impl<'ast> ast::visit::Visit<'ast> for WrapInBlock<'ast> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => {
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => {
                 self.selected_expression = Some(assignment.value.location());
             }
         };
@@ -8962,7 +8968,8 @@ impl<'ast> ast::visit::Visit<'ast> for RemoveBlock<'ast> {
                     | TypedExpr::RecordUpdate { .. }
                     | TypedExpr::NegateBool { .. }
                     | TypedExpr::NegateInt { .. }
-                    | TypedExpr::Invalid { .. } => {
+                    | TypedExpr::Invalid { .. }
+                    | TypedExpr::Handle { .. } => {
                         self.block_span = Some(*location);
                     }
                     TypedExpr::BinOp { .. } | TypedExpr::Pipeline { .. } => {
@@ -9495,7 +9502,8 @@ fn single_expression(expression: &TypedExpr) -> Option<&TypedExpr> {
         | TypedExpr::RecordUpdate { .. }
         | TypedExpr::NegateBool { .. }
         | TypedExpr::NegateInt { .. }
-        | TypedExpr::Invalid { .. } => Some(expression),
+        | TypedExpr::Invalid { .. }
+        | TypedExpr::Handle { .. } => Some(expression),
     }
 }
 
@@ -10660,7 +10668,8 @@ impl<'a> ExtractFunction<'a> {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => !completely_within(selected_range, expression_range),
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => !completely_within(selected_range, expression_range),
         }
     }
 

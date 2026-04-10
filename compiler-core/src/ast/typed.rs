@@ -205,6 +205,22 @@ pub enum TypedExpr {
         /// states.
         extra_information: Option<InvalidExpression>,
     },
+
+    /// A `handle computation() with state { ... }` expression.
+    Handle {
+        location: SrcSpan,
+        /// The overall type of the handle expression (the return type of the
+        /// handler clauses / return clause body).
+        type_: Arc<Type>,
+        /// The typed computation expression being handled.
+        computation: Box<Self>,
+        /// The typed initial state expression.
+        initial_state: Box<Self>,
+        /// Typed handler clauses for each effect operation.
+        effect_clauses: Vec<TypedEffectClause>,
+        /// The mandatory return clause.
+        return_clause: Box<TypedEffectReturnClause>,
+    },
 }
 
 impl TypedExpr {
@@ -432,6 +448,23 @@ impl TypedExpr {
                         .and_then(|assignment| assignment.find_node(byte_index))
                 })
                 .or_else(|| self.self_if_contains_location(byte_index)),
+
+            Self::Handle {
+                computation,
+                initial_state,
+                effect_clauses,
+                return_clause,
+                ..
+            } => computation
+                .find_node(byte_index)
+                .or_else(|| initial_state.find_node(byte_index))
+                .or_else(|| {
+                    effect_clauses
+                        .iter()
+                        .find_map(|clause| clause.body.find_node(byte_index))
+                })
+                .or_else(|| return_clause.body.find_node(byte_index))
+                .or_else(|| self.self_if_contains_location(byte_index)),
         }
     }
 
@@ -594,6 +627,22 @@ impl TypedExpr {
                         .as_ref()
                         .and_then(|r| r.value.find_statement(byte_index))
                 }),
+
+            Self::Handle {
+                computation,
+                initial_state,
+                effect_clauses,
+                return_clause,
+                ..
+            } => computation
+                .find_statement(byte_index)
+                .or_else(|| initial_state.find_statement(byte_index))
+                .or_else(|| {
+                    effect_clauses
+                        .iter()
+                        .find_map(|clause| clause.body.find_statement(byte_index))
+                })
+                .or_else(|| return_clause.body.find_statement(byte_index)),
         }
     }
 
@@ -630,7 +679,8 @@ impl TypedExpr {
             | Self::RecordUpdate { .. }
             | Self::NegateBool { .. }
             | Self::NegateInt { .. }
-            | Self::Invalid { .. } => false,
+            | Self::Invalid { .. }
+            | Self::Handle { .. } => false,
         }
     }
 
@@ -659,7 +709,8 @@ impl TypedExpr {
             | Self::RecordUpdate { .. }
             | Self::NegateBool { .. }
             | Self::NegateInt { .. }
-            | Self::Invalid { .. } => false,
+            | Self::Invalid { .. }
+            | Self::Handle { .. } => false,
         }
     }
 
@@ -688,7 +739,8 @@ impl TypedExpr {
             | Self::RecordAccess { location, .. }
             | Self::PositionalAccess { location, .. }
             | Self::RecordUpdate { location, .. }
-            | Self::Invalid { location, .. } => *location,
+            | Self::Invalid { location, .. }
+            | Self::Handle { location, .. } => *location,
         }
     }
 
@@ -716,7 +768,8 @@ impl TypedExpr {
             | Self::RecordAccess { location, .. }
             | Self::PositionalAccess { location, .. }
             | Self::RecordUpdate { location, .. }
-            | Self::Invalid { location, .. } => *location,
+            | Self::Invalid { location, .. }
+            | Self::Handle { location, .. } => *location,
             Self::Block { statements, .. } => statements.last().location(),
         }
     }
@@ -743,7 +796,8 @@ impl TypedExpr {
             | TypedExpr::TupleIndex { .. }
             | TypedExpr::RecordAccess { .. }
             | TypedExpr::PositionalAccess { .. }
-            | Self::Invalid { .. } => None,
+            | Self::Invalid { .. }
+            | TypedExpr::Handle { .. } => None,
 
             // TODO: test
             // TODO: definition
@@ -787,7 +841,8 @@ impl TypedExpr {
             | Self::RecordAccess { type_, .. }
             | Self::PositionalAccess { type_, .. }
             | Self::RecordUpdate { type_, .. }
-            | Self::Invalid { type_, .. } => type_.clone(),
+            | Self::Invalid { type_, .. }
+            | Self::Handle { type_, .. } => type_.clone(),
             Self::Pipeline { finally, .. } => finally.type_(),
             Self::Block { statements, .. } => statements.last().type_(),
         }
@@ -837,7 +892,8 @@ impl TypedExpr {
             | Self::RecordUpdate { .. }
             | Self::NegateBool { .. }
             | Self::NegateInt { .. }
-            | Self::Invalid { .. } => false,
+            | Self::Invalid { .. }
+            | Self::Handle { .. } => false,
         }
     }
 
@@ -869,7 +925,8 @@ impl TypedExpr {
             | TypedExpr::BitArray { .. }
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => self.is_literal(),
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => self.is_literal(),
         }
     }
 
@@ -911,7 +968,8 @@ impl TypedExpr {
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
             | TypedExpr::PositionalAccess { .. }
-            | TypedExpr::Invalid { .. } => None,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => None,
         }
     }
 
@@ -1007,7 +1065,8 @@ impl TypedExpr {
             TypedExpr::Todo { .. }
             | TypedExpr::Panic { .. }
             | TypedExpr::Echo { .. }
-            | TypedExpr::Invalid { .. } => false,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => false,
         }
     }
 
@@ -1068,7 +1127,8 @@ impl TypedExpr {
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
             | TypedExpr::PositionalAccess { .. }
-            | TypedExpr::Invalid { .. } => Purity::Unknown,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => Purity::Unknown,
         }
     }
 
@@ -1105,7 +1165,8 @@ impl TypedExpr {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => false,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => false,
         }
     }
 
@@ -1151,7 +1212,8 @@ impl TypedExpr {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => false,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => false,
         }
     }
 
@@ -1195,7 +1257,8 @@ impl TypedExpr {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => None,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => None,
         }
     }
 
@@ -1236,7 +1299,8 @@ impl TypedExpr {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => None,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => None,
         }
     }
 
@@ -1297,6 +1361,7 @@ impl TypedExpr {
             | TypedExpr::NegateInt { location, .. }
             | TypedExpr::Invalid { location, .. }
             | TypedExpr::Echo { location, .. }
+            | TypedExpr::Handle { location, .. }
             | TypedExpr::Pipeline { location, .. } => *location,
 
             TypedExpr::Block { statements, .. } => statements.last().last_location(),
@@ -1327,7 +1392,8 @@ impl TypedExpr {
             | TypedExpr::RecordUpdate { .. }
             | TypedExpr::NegateBool { .. }
             | TypedExpr::NegateInt { .. }
-            | TypedExpr::Invalid { .. } => None,
+            | TypedExpr::Invalid { .. }
+            | TypedExpr::Handle { .. } => None,
 
             TypedExpr::Var { constructor, .. } => constructor.field_map(),
             TypedExpr::ModuleSelect { constructor, .. } => match constructor {
@@ -1641,6 +1707,7 @@ impl TypedExpr {
 
             (TypedExpr::PositionalAccess { .. }, _) => false,
             (TypedExpr::Invalid { .. }, _) => false,
+            (TypedExpr::Handle { .. }, _) => false,
         }
     }
 

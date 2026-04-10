@@ -1,0 +1,27 @@
+---
+source: compiler-core/src/type_/tests/effects.rs
+expression: "\npub effect Store(a) {\n  Get() -> a\n}\n\npub fn run() -> Int {\n  handle Get() with Nil {\n    Store.DoesNotExist(resume) -> resume(0, Nil)\n    Return(v) -> v\n  }\n}\n"
+snapshot_kind: text
+---
+----- SOURCE CODE
+
+pub effect Store(a) {
+  Get() -> a
+}
+
+pub fn run() -> Int {
+  handle Get() with Nil {
+    Store.DoesNotExist(resume) -> resume(0, Nil)
+    Return(v) -> v
+  }
+}
+
+
+----- ERROR
+error: Unknown effect operation
+  ┌─ /src/one/two.gleam:8:11
+  │
+8 │     Store.DoesNotExist(resume) -> resume(0, Nil)
+  │           ^^^^^^^^^^^^ This is not an effect operation
+
+`DoesNotExist` is not a known effect operation.

@@ -94,7 +94,8 @@ pub fn for_expression(expr: &TypedExpr, module: &Module) -> Option<SignatureHelp
         | TypedExpr::BitArray { .. }
         | TypedExpr::RecordUpdate { .. }
         | TypedExpr::NegateBool { .. }
-        | TypedExpr::NegateInt { .. } => signature_help("fn".into(), fun, arguments, None, module),
+        | TypedExpr::NegateInt { .. }
+        | TypedExpr::Handle { .. } => signature_help("fn".into(), fun, arguments, None, module),
     }
 }
 
