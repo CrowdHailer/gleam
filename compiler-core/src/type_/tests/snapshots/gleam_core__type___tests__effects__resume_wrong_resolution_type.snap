@@ -1,0 +1,33 @@
+---
+source: compiler-core/src/type_/tests/effects.rs
+expression: "\npub effect Store {\n  Get() -> Int\n}\n\npub fn run() -> Int {\n  handle Get() with Nil {\n    Store.Get(resume) -> resume(\"not an int\", Nil)\n    Return(v) -> v\n  }\n}\n"
+snapshot_kind: text
+---
+----- SOURCE CODE
+
+pub effect Store {
+  Get() -> Int
+}
+
+pub fn run() -> Int {
+  handle Get() with Nil {
+    Store.Get(resume) -> resume("not an int", Nil)
+    Return(v) -> v
+  }
+}
+
+
+----- ERROR
+error: Type mismatch
+  ┌─ /src/one/two.gleam:8:33
+  │
+8 │     Store.Get(resume) -> resume("not an int", Nil)
+  │                                 ^^^^^^^^^^^^
+
+Expected type:
+
+    Int
+
+Found type:
+
+    String

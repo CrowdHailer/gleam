@@ -255,3 +255,43 @@ pub fn run() -> Int {
 "#
     );
 }
+
+/// resume is typed as fn(ResolutionType, StateType) -> HandlerReturnType.
+/// Passing a wrong resolution type must produce a type error.
+#[test]
+fn resume_wrong_resolution_type() {
+    assert_module_error!(
+        r#"
+pub effect Store {
+  Get() -> Int
+}
+
+pub fn run() -> Int {
+  handle Get() with Nil {
+    Store.Get(resume) -> resume("not an int", Nil)
+    Return(v) -> v
+  }
+}
+"#
+    );
+}
+
+/// resume is typed as fn(ResolutionType, StateType) -> HandlerReturnType.
+/// Passing a wrong state type must produce a type error.
+#[test]
+fn resume_wrong_state_type() {
+    assert_module_error!(
+        r#"
+pub effect Store(a) {
+  Get() -> a
+}
+
+pub fn run() -> Int {
+  handle Get() with 0 {
+    Store.Get(resume) -> resume(0, "wrong state type")
+    Return(v) -> v
+  }
+}
+"#
+    );
+}

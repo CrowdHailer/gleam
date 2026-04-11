@@ -2405,7 +2405,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
     ///
     /// 2.4a: infer computation, verify each clause operation exists and belongs
     ///        to the stated effect, bind arguments and resume, check clause bodies.
-    /// 2.4b: TODO — infer the correct type for the `resume` continuation.
+    /// 2.4b: infer `resume` as fn(ResolutionType, StateType) -> HandlerReturnType.
     /// 2.4c: TODO — subtract handled effects from the computation's effect row.
     ///
     fn infer_handle(
@@ -2478,7 +2478,7 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             let operation_type = self.instantiate(operation_type, &mut ids);
 
             // Verify it is an effect operation: must be a Fn with a non-empty effect row.
-            let (arg_types, _op_return_type, op_effect_row) =
+            let (arg_types, op_return_type, op_effect_row) =
                 match operation_type.as_ref() {
                     Type::Fn { arguments, return_, effects } => {
                         (arguments.clone(), return_.clone(), effects.clone())
@@ -2560,11 +2560,11 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             let resume_name = resume.1.clone();
             let resume_location = resume.0;
 
-            // 2.4b (TODO): the correct resume type is
-            //   fn(op_return_type, state_type) -> return_type
-            // For now we use an unbound var to avoid blocking type-checking.
-            let resume_type = self.new_unbound_var();
-            let _ = state_type.clone();
+            // 2.4b: resume is a continuation fn(ResolutionType, StateType) -> HandlerReturnType
+            let resume_type = fn_(
+                vec![op_return_type.clone(), state_type.clone()],
+                return_type.clone(),
+            );
 
             let typed_body = self.value_in_new_scope(|this| {
                 // Bind operation arguments.

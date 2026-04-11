@@ -1,0 +1,33 @@
+---
+source: compiler-core/src/type_/tests/effects.rs
+expression: "\npub effect Store(a) {\n  Get() -> a\n}\n\npub fn run() -> Int {\n  handle Get() with 0 {\n    Store.Get(resume) -> resume(0, \"wrong state type\")\n    Return(v) -> v\n  }\n}\n"
+snapshot_kind: text
+---
+----- SOURCE CODE
+
+pub effect Store(a) {
+  Get() -> a
+}
+
+pub fn run() -> Int {
+  handle Get() with 0 {
+    Store.Get(resume) -> resume(0, "wrong state type")
+    Return(v) -> v
+  }
+}
+
+
+----- ERROR
+error: Type mismatch
+  ┌─ /src/one/two.gleam:8:36
+  │
+8 │     Store.Get(resume) -> resume(0, "wrong state type")
+  │                                    ^^^^^^^^^^^^^^^^^^
+
+Expected type:
+
+    Int
+
+Found type:
+
+    String

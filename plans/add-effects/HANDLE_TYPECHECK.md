@@ -1,5 +1,5 @@
 ---
-task: 2.4a
+task: 2.4a, 2.4b
 status: complete
 ---
 
@@ -41,4 +41,9 @@ Replace the `TypedExpr::Todo` stub in `UntypedExpr::Handle` arm with real type i
 
 ## Current Status
 
-Complete. All exhaustive matches updated, infer_handle implemented, 4 new tests added and passing (3785 total).
+2.4a complete. All exhaustive matches updated, infer_handle implemented, 4 new tests added and passing (3785 total).
+
+2.4b complete. Replaced `self.new_unbound_var()` for `resume_type` with
+`fn_(vec![op_return_type, state_type], return_type)` in `infer_handle`
+(`compiler-core/src/type_/expression.rs` ~line 2563). Added 2 new snapshot error tests
+(`resume_wrong_resolution_type`, `resume_wrong_state_type`); 3787 tests pass.

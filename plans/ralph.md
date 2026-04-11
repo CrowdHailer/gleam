@@ -27,8 +27,8 @@ Tasks are ordered by dependency. Each is self-contained and testable in isolatio
 - [x] **2.2** Implement effect row unification: propagate effects from callee to caller during type inference — progress: `plans/add-effects/EFFECT_ROW_UNIFY.md`
 - [x] **2.3a** Infer effect signature from an `EffectDefinition`; register it in the type environment — progress: `plans/add-effects/EFFECT_REGISTER.md`
 - [x] **2.3b** When an effect is performed inside a function, add that effect to the enclosing function's row — progress: `plans/add-effects/EFFECT_PROPAGATE.md`
-- [ ] **2.4a** Type-check `HandleExpression` body; verify handler clauses match declared effects
-- [ ] **2.4b** Infer the type of the `resume` binding in each handler clause as `fn(ResolutionType, StateType) -> ReturnType`
+- [x] **2.4a** Type-check `HandleExpression` body; verify handler clauses match declared effects — progress: `plans/add-effects/HANDLE_TYPECHECK.md`
+- [x] **2.4b** Infer the type of the `resume` binding in each handler clause as `fn(ResolutionType, StateType) -> ReturnType` — progress: `plans/add-effects/HANDLE_TYPECHECK.md`
 - [ ] **2.4c** Subtract handled effects from the expression's row to produce the final `HandleExpression` type
 
 ### Phase 3: JavaScript Code Generation
