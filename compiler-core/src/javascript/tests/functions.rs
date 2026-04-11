@@ -800,3 +800,32 @@ pub fn run(state: Int) -> #(Int, Int) {
 "#
     );
 }
+
+/// A handle expression that only handles some effects: unhandled effects bubble
+/// up via `yield` through a generator IIFE.
+#[test]
+fn handle_expression_with_effect_bubbling() {
+    assert_js!(
+        r#"
+pub effect Log {
+  Emit(String) -> Nil
+}
+
+pub effect Store {
+  Get() -> Int
+}
+
+fn computation() -> Int {
+  Emit("hello")
+  Get()
+}
+
+pub fn run(state: Int) -> Int {
+  handle computation() with state {
+    Log.Emit(msg, resume) -> resume(Nil, state)
+    Return(v) -> v
+  }
+}
+"#
+    );
+}

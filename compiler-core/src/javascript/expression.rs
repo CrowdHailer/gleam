@@ -1642,8 +1642,6 @@ impl<'module, 'a> Generator<'module, 'a> {
         return_clause: &'a TypedEffectReturnClause,
     ) -> Document<'a> {
         // Enter a new function scope for the IIFE.
-        // The IIFE is an arrow function — not a generator — so yield* must not
-        // be emitted inside it.
         let outer_function_position =
             std::mem::replace(&mut self.function_position, Position::Tail);
         let outer_scope_position =
@@ -1654,6 +1652,12 @@ impl<'module, 'a> Generator<'module, 'a> {
         std::mem::swap(&mut self.current_function, &mut current_fn);
         let outer_in_generator_context =
             std::mem::replace(&mut self.in_generator_context, false);
+
+        // When the enclosing function is a generator, unhandled effects must
+        // bubble upward.  In that case we emit a generator IIFE so that the
+        // loop body can `yield` unrecognised effects and the IIFE result can be
+        // delegated with `yield*` by the caller.
+        let bubbling = outer_in_generator_context;
 
         // Fresh variable names to avoid shadowing user-defined names.
         let gen_var = self.next_local_var(&"gen".into());
@@ -1674,13 +1678,38 @@ impl<'module, 'a> Generator<'module, 'a> {
         // function provides it.
         let _ = self.current_scope_vars.insert("state".into(), 0);
 
-        // Generate the loop arrow-function body.
+        // Generate the loop body.
         let loop_body = self.gen_handle_loop_body(
             gen_var.clone(),
             loop_var.clone(),
             effect_clauses,
             return_clause,
+            bubbling,
         );
+
+        // Loop function and return statement differ between bubbling / non-bubbling.
+        //
+        // Non-bubbling: all effects are handled here; plain arrow function.
+        //   const loop = (state, $next) => { … };
+        //   return loop(initial_state, undefined);
+        //
+        // Bubbling: unhandled effects must propagate; loop is a generator so it
+        //   can `yield` them, and the IIFE delegates with `yield*`.
+        //   function* loop(state, $next) { … }
+        //   return yield* loop(initial_state, undefined);
+        let (loop_open, loop_close, return_loop) = if bubbling {
+            (
+                docvec!["function* ", loop_var.clone(), "(state, $next) {"],
+                docvec!["}"],
+                docvec!["return yield* ", loop_var, "(", initial_state_doc, ", undefined);"],
+            )
+        } else {
+            (
+                docvec!["const ", loop_var.clone(), " = (state, $next) => {"],
+                docvec!["};"],
+                docvec!["return ", loop_var, "(", initial_state_doc, ", undefined);"],
+            )
+        };
 
         // Assemble the IIFE body.
         let iife_body = docvec![
@@ -1690,21 +1719,22 @@ impl<'module, 'a> Generator<'module, 'a> {
             computation_doc,
             ";",
             line(),
-            "const ",
-            loop_var.clone(),
-            " = (state, $next) => {",
+            loop_open,
             docvec![line(), loop_body].nest(INDENT),
             line(),
-            "};",
+            loop_close,
             line(),
-            "return ",
-            loop_var,
-            "(",
-            initial_state_doc,
-            ", undefined);"
+            return_loop
         ];
 
-        let iife = immediately_invoked_function_expression_document(iife_body);
+        // Wrap in an IIFE.  When bubbling, the IIFE is a generator so that
+        // `yield` inside the loop propagates outward; the outer generator
+        // delegates to it with `yield*`.
+        let iife = if bubbling {
+            immediately_invoked_generator_expression_document(iife_body)
+        } else {
+            immediately_invoked_function_expression_document(iife_body)
+        };
 
         // Restore outer state.
         self.current_scope_vars = outer_scope_vars;
@@ -1714,7 +1744,13 @@ impl<'module, 'a> Generator<'module, 'a> {
         std::mem::swap(&mut self.current_function, &mut current_fn);
         self.in_generator_context = outer_in_generator_context;
 
-        iife
+        // When bubbling, wrap with `yield*` so the outer `return` becomes
+        // `return yield* (function*() { … })()`.
+        if bubbling {
+            docvec!["yield* ", iife]
+        } else {
+            iife
+        }
     }
 
     /// Generate the body of the runner loop for a handle expression.
@@ -1724,6 +1760,7 @@ impl<'module, 'a> Generator<'module, 'a> {
         loop_var: EcoString,
         effect_clauses: &'a [TypedEffectClause],
         return_clause: &'a TypedEffectReturnClause,
+        bubbling: bool,
     ) -> Document<'a> {
         // Advance the generator.
         let advance = docvec!["const $r = ", gen_var, ".next($next);"];
@@ -1790,7 +1827,9 @@ impl<'module, 'a> Generator<'module, 'a> {
                     ]);
                 }
 
-                // resume closure: const resume = ($res, $ns) => loop($ns, $res);
+                // resume closure: ($res, $ns) => loop($ns, $res)
+                // When bubbling, loop is a generator so resume returns a generator
+                // that the caller can yield* to get the value.
                 let resume_js = self.next_local_var(&clause.resume_name);
                 inner.push(docvec![
                     "const ",
@@ -1801,10 +1840,14 @@ impl<'module, 'a> Generator<'module, 'a> {
                 ]);
 
                 // Clause body in tail position.
+                // When bubbling, set in_generator_context so effectful calls (including
+                // resume) get yield* delegation.
                 self.scope_position = Position::Tail;
                 self.function_position = Position::Tail;
+                let outer_in_gen = std::mem::replace(&mut self.in_generator_context, bubbling);
                 let body_doc = self.expression(&clause.body);
                 let body_doc = self.add_statement_level(body_doc);
+                self.in_generator_context = outer_in_gen;
                 inner.push(body_doc);
 
                 self.current_scope_vars = outer_vars;
@@ -1823,6 +1866,15 @@ impl<'module, 'a> Generator<'module, 'a> {
 
         let clauses = join(clause_docs, line());
 
+        // Fallback branch: yield unrecognised effects upward (effect bubbling).
+        // Only emitted when the handle expression is itself inside a generator
+        // (i.e. there are remaining unhandled effects that must propagate).
+        let fallback = if bubbling {
+            Some(docvec![line(), "return yield $effect;"])
+        } else {
+            None
+        };
+
         docvec![
             advance,
             line(),
@@ -1830,7 +1882,8 @@ impl<'module, 'a> Generator<'module, 'a> {
             line(),
             get_effect,
             line(),
-            clauses
+            clauses,
+            fallback
         ]
     }
 
@@ -3104,6 +3157,18 @@ fn expression_requires_semicolon(expression: &TypedExpr) -> bool {
 fn immediately_invoked_function_expression_document(document: Document<'_>) -> Document<'_> {
     docvec![
         docvec!["(() => {", break_("", " "), document].nest(INDENT),
+        break_("", " "),
+        "})()",
+    ]
+    .group()
+}
+
+/// Like `immediately_invoked_function_expression_document` but produces a
+/// generator IIFE: `(function*() { … })()`.  Used for handle expressions that
+/// need to bubble unhandled effects upward via `yield`.
+fn immediately_invoked_generator_expression_document(document: Document<'_>) -> Document<'_> {
+    docvec![
+        docvec!["(function*() {", break_("", " "), document].nest(INDENT),
         break_("", " "),
         "})()",
     ]
