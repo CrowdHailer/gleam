@@ -1,5 +1,5 @@
 ---
-task: 2.4a, 2.4b
+task: 2.4a, 2.4b, 2.4c
 status: complete
 ---
 
@@ -47,3 +47,10 @@ Replace the `TypedExpr::Todo` stub in `UntypedExpr::Handle` arm with real type i
 `fn_(vec![op_return_type, state_type], return_type)` in `infer_handle`
 (`compiler-core/src/type_/expression.rs` ~line 2563). Added 2 new snapshot error tests
 (`resume_wrong_resolution_type`, `resume_wrong_state_type`); 3787 tests pass.
+
+2.4c complete. In `infer_handle`, the computation is now inferred in an isolated
+`current_effects` scope. After all clauses are processed, handled effect names are
+collected from `typed_effect_clauses`. Only effects NOT in the handled set are merged
+back into the enclosing function's `current_effects`. Open row variables are propagated
+conservatively. 2 new tests: `handle_absorbs_all_effects`,
+`handle_leaves_unhandled_effects_on_enclosing_function`; 3789 tests pass.

@@ -2420,12 +2420,21 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
             return_clause,
         } = h;
 
+        // 2.4c: Isolate the computation's effects so we can subtract the
+        // handled ones before propagating the remainder to the enclosing function.
+        let outer_effects = std::mem::replace(&mut self.current_effects, EffectRow::default());
+
         // 1. Infer the computation expression.
         let typed_computation = self.infer(*computation);
         let computation_return_type = match typed_computation.type_().as_ref() {
             Type::Fn { return_, .. } => return_.clone(),
             _ => typed_computation.type_(),
         };
+
+        // Capture the computation's effects, then restore the outer effect row so
+        // that the handler clause bodies and return clause body accumulate their own
+        // effects into the enclosing function normally.
+        let computation_effects = std::mem::replace(&mut self.current_effects, outer_effects);
 
         // 2. Infer the initial state.
         let typed_initial_state = self.infer(*initial_state);
@@ -2660,6 +2669,28 @@ impl<'a, 'b> ExprTyper<'a, 'b> {
                 err.case_clause_mismatch(return_clause_location)
                     .into_error(typed_return_body.type_defining_location()),
             );
+        }
+
+        // 2.4c: Subtract the effects handled by this block from the computation's
+        // effect row, then propagate only the remaining effects to the enclosing
+        // function.  Handler clause bodies have already accumulated their own effects
+        // into `self.current_effects` above, so we only need to add the unhandled
+        // computation effects on top.
+        let handled_effect_names: std::collections::HashSet<&EcoString> =
+            typed_effect_clauses.iter().map(|c| &c.effect_name).collect();
+
+        for effect in &computation_effects.effects {
+            if !handled_effect_names.contains(&effect.name) {
+                if !self.current_effects.effects.contains(effect) {
+                    self.current_effects.effects.push(effect.clone());
+                }
+            }
+        }
+        // If the computation row is open (unknown extra effects), and we do not
+        // handle everything, conservatively propagate the open variable so the
+        // enclosing function is not falsely typed as pure.
+        if computation_effects.var.is_some() && self.current_effects.var.is_none() {
+            self.current_effects.var = computation_effects.var;
         }
 
         TypedExpr::Handle {

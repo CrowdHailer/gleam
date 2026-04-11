@@ -295,3 +295,95 @@ pub fn run() -> Int {
 "#
     );
 }
+
+/// A handle expression that handles all effects of its computation makes the
+/// enclosing function pure (no effects propagate out).
+#[test]
+fn handle_absorbs_all_effects() {
+    let src = r#"
+pub effect Store(a) {
+  Get() -> a
+}
+
+pub fn run() -> Int {
+  handle Get() with Nil {
+    Store.Get(resume) -> resume(0, Nil)
+    Return(v) -> v
+  }
+}
+"#;
+    let module = compile_module("test_module", src, None, vec![])
+        .into_result()
+        .expect("should infer successfully");
+
+    let run_type = module
+        .type_info
+        .values
+        .get("run")
+        .expect("run should be registered")
+        .type_
+        .clone();
+
+    match run_type.as_ref() {
+        Type::Fn { effects, .. } => {
+            assert!(
+                effects.is_empty(),
+                "expected empty effect row for fully-handled function, got {:?}",
+                effects
+            );
+        }
+        other => panic!("expected Fn type, got {:?}", other),
+    }
+}
+
+/// When a handle expression only handles some effects, the remaining effects
+/// propagate to the enclosing function.
+#[test]
+fn handle_leaves_unhandled_effects_on_enclosing_function() {
+    let src = r#"
+pub effect Store(a) {
+  Get() -> a
+}
+
+pub effect Log {
+  Write(String) -> Nil
+}
+
+pub fn run() -> Int {
+  handle {
+    let _ = Write("hi")
+    Get()
+  } with Nil {
+    Store.Get(resume) -> resume(0, Nil)
+    Return(v) -> v
+  }
+}
+"#;
+    let module = compile_module("test_module", src, None, vec![])
+        .into_result()
+        .expect("should infer successfully");
+
+    let run_type = module
+        .type_info
+        .values
+        .get("run")
+        .expect("run should be registered")
+        .type_
+        .clone();
+
+    match run_type.as_ref() {
+        Type::Fn { effects, .. } => {
+            assert!(
+                effects.effects.iter().any(|e| e.name == "Log"),
+                "expected Log in effect row (unhandled), got {:?}",
+                effects
+            );
+            assert!(
+                !effects.effects.iter().any(|e| e.name == "Store"),
+                "expected Store to be absent (handled), got {:?}",
+                effects
+            );
+        }
+        other => panic!("expected Fn type, got {:?}", other),
+    }
+}
