@@ -1533,6 +1533,12 @@ impl<'module, 'a> Generator<'module, 'a> {
             | TypedExpr::NegateInt { .. }
             | TypedExpr::Invalid { .. }
             | TypedExpr::Handle { .. } => {
+                // If the callee is itself a generator (effectful function), we
+                // must delegate with `yield*` so that yielded effect objects
+                // propagate to the enclosing runner loop.  Only concrete named
+                // effects trigger this — open row variables are type-inference
+                // artefacts on pure recursive functions and must not.
+                let delegate = callee_is_generator(fun);
                 let fun = self.not_in_tail_position(None, |this| -> Document<'_> {
                     let is_fn_literal = matches!(fun, TypedExpr::Fn { .. });
                     let fun = this.wrap_expression(fun);
@@ -1543,7 +1549,12 @@ impl<'module, 'a> Generator<'module, 'a> {
                     }
                 });
                 let arguments = call_arguments(arguments);
-                self.wrap_return(docvec![fun, arguments])
+                let call = docvec![fun, arguments];
+                if delegate {
+                    self.wrap_return(docvec!["yield* ", call])
+                } else {
+                    self.wrap_return(call)
+                }
             }
         }
     }
@@ -2707,6 +2718,18 @@ fn call_arguments<'a, Elements: IntoIterator<Item = Document<'a>>>(
         ")"
     ]
     .group()
+}
+
+/// Returns `true` if calling `fun` will produce a JS generator and therefore
+/// must be delegated with `yield*` so yielded effect objects propagate upward.
+///
+/// Only concrete (named) effects trigger this; open row-polymorphism variables
+/// are type-inference artefacts on pure recursive functions and must not.
+fn callee_is_generator(fun: &TypedExpr) -> bool {
+    match fun.type_().as_ref() {
+        Type::Fn { effects, .. } => !effects.effects.is_empty(),
+        _ => false,
+    }
 }
 
 pub(crate) fn construct_record<'a>(

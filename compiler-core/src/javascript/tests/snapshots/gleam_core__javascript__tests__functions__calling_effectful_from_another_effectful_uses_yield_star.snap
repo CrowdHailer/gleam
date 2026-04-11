@@ -1,0 +1,30 @@
+---
+source: compiler-core/src/javascript/tests/functions.rs
+expression: "\npub effect Log {\n  Emit(String) -> Nil\n}\n\nfn step_one(msg: String) -> Nil {\n  Emit(msg)\n}\n\npub fn step_two(msg: String) -> Nil {\n  step_one(msg)\n  step_one(\"done\")\n}\n"
+snapshot_kind: text
+---
+----- SOURCE CODE
+
+pub effect Log {
+  Emit(String) -> Nil
+}
+
+fn step_one(msg: String) -> Nil {
+  Emit(msg)
+}
+
+pub fn step_two(msg: String) -> Nil {
+  step_one(msg)
+  step_one("done")
+}
+
+
+----- COMPILED JAVASCRIPT
+function* step_one(msg) {
+  return yield { type: "Log.Emit", args: [msg] };
+}
+
+export function* step_two(msg) {
+  yield* step_one(msg);
+  return yield* step_one("done");
+}

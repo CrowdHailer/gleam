@@ -1,0 +1,28 @@
+---
+source: compiler-core/src/javascript/tests/functions.rs
+expression: "\npub effect Store(a) {\n  Get() -> a\n}\n\nfn inner() -> Int {\n  Get()\n}\n\npub fn outer() -> Int {\n  inner()\n}\n"
+snapshot_kind: text
+---
+----- SOURCE CODE
+
+pub effect Store(a) {
+  Get() -> a
+}
+
+fn inner() -> Int {
+  Get()
+}
+
+pub fn outer() -> Int {
+  inner()
+}
+
+
+----- COMPILED JAVASCRIPT
+function* inner() {
+  return yield { type: "Store.Get", args: [] };
+}
+
+export function* outer() {
+  return yield* inner();
+}

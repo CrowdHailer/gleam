@@ -1,6 +1,5 @@
 ---
 source: compiler-core/src/javascript/tests/functions.rs
-assertion_line: 656
 expression: "\npub effect Log {\n  Emit(String) -> Nil\n}\n\nfn log_something(msg: String) -> Nil {\n  Emit(msg)\n}\n\npub fn run() -> Nil {\n  log_something(\"hi\")\n}\n"
 snapshot_kind: text
 ---
@@ -25,5 +24,5 @@ function* log_something(msg) {
 }
 
 export function* run() {
-  return log_something("hi");
+  return yield* log_something("hi");
 }

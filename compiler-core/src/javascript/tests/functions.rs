@@ -685,3 +685,44 @@ pub fn call(url: String, port: Int) -> String {
 "#
     );
 }
+
+/// Calling another effectful function uses `yield*` to delegate the generator.
+#[test]
+fn effectful_call_uses_yield_star_delegation() {
+    assert_js!(
+        r#"
+pub effect Store(a) {
+  Get() -> a
+}
+
+fn inner() -> Int {
+  Get()
+}
+
+pub fn outer() -> Int {
+  inner()
+}
+"#
+    );
+}
+
+/// A pure function calling an effectful function uses `yield*` delegation.
+#[test]
+fn calling_effectful_from_another_effectful_uses_yield_star() {
+    assert_js!(
+        r#"
+pub effect Log {
+  Emit(String) -> Nil
+}
+
+fn step_one(msg: String) -> Nil {
+  Emit(msg)
+}
+
+pub fn step_two(msg: String) -> Nil {
+  step_one(msg)
+  step_one("done")
+}
+"#
+    );
+}

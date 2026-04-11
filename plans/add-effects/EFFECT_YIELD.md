@@ -1,5 +1,5 @@
 ---
-task: 3.2a
+task: 3.2a, 3.2b
 status: complete
 ---
 
@@ -44,3 +44,51 @@ yield { type: "EffectName.OpName", args: [arg1, arg2] }
 - `effect_operation_with_multiple_args` — `Request(url, port)` → `yield { type: "Http.Request", args: [url, port] }`
 
 3793 tests pass total.
+
+## Task 3.2b: Translate calls to effectful functions into `yield*` delegation
+
+### Goal
+
+When a Gleam function calls another effectful Gleam function (one compiled as a
+generator), the JS backend must emit `yield*` so that yielded effect objects
+propagate to the enclosing runner loop.
+
+### Approach
+
+Added a free function `callee_is_generator(fun: &TypedExpr) -> bool` in
+`javascript/expression.rs` that checks `fun.type_()`:
+
+```rust
+fn callee_is_generator(fun: &TypedExpr) -> bool {
+    match fun.type_().as_ref() {
+        Type::Fn { effects, .. } => !effects.effects.is_empty(),
+        _ => false,
+    }
+}
+```
+
+Only concrete named effects (`effects.effects.is_empty() == false`) trigger
+`yield*` — open row variables (`var: Some(_)`) are type-inference artefacts on
+pure recursive functions.
+
+In the catch-all arm of `call_with_doc_arguments`, computed `delegate =
+callee_is_generator(fun)` before compiling the callee, then emitted
+`yield* fun(args)` instead of `fun(args)` when `delegate` is true.
+
+### Files Changed
+
+- `compiler-core/src/javascript/expression.rs` — `callee_is_generator` helper
+  + updated catch-all in `call_with_doc_arguments`
+- `compiler-core/src/javascript/tests/functions.rs` — 2 new tests
+- Snapshot files for the 3 updated/new tests
+
+### Tests
+
+Updated snapshot:
+- `private_effectful_function_is_generator` — call to `log_something` now uses `yield*`
+
+2 new snapshots:
+- `effectful_call_uses_yield_star_delegation` — `inner()` → `yield* inner()`
+- `calling_effectful_from_another_effectful_uses_yield_star` — multiple `yield*` calls
+
+3795 tests pass total.
