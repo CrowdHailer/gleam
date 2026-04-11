@@ -1,0 +1,44 @@
+---
+source: compiler-core/src/javascript/tests/functions.rs
+expression: "\npub effect Store {\n  Get() -> Int\n}\n\nfn computation() -> Int {\n  Get()\n}\n\npub fn run(state: Int) -> Int {\n  handle computation() with state {\n    Store.Get(resume) -> resume(state, state)\n    Return(v) -> v\n  }\n}\n"
+snapshot_kind: text
+---
+----- SOURCE CODE
+
+pub effect Store {
+  Get() -> Int
+}
+
+fn computation() -> Int {
+  Get()
+}
+
+pub fn run(state: Int) -> Int {
+  handle computation() with state {
+    Store.Get(resume) -> resume(state, state)
+    Return(v) -> v
+  }
+}
+
+
+----- COMPILED JAVASCRIPT
+function* computation() {
+  return yield { type: "Store.Get", args: [] };
+}
+
+export function run(state) {
+  return (() => { const gen = computation();
+    const loop = (state, $next) => {
+      const $r = gen.next($next);
+      if ($r.done) {
+        const v = $r.value;
+        return v;
+      }
+      const $effect = $r.value;
+      if ($effect.type === "Store.Get") {
+        const resume = ($res, $ns) => loop($ns, $res);
+        return resume(state, state);
+      }
+    };
+    return loop(state, undefined); })();
+}

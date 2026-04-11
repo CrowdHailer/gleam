@@ -835,6 +835,10 @@ impl<'a> Generator<'a> {
             (false, true) => "export function* ",
         };
 
+        // Tell the expression generator whether this function body is a JS generator.
+        // Only generator functions may emit `yield*` delegations.
+        generator.in_generator_context = is_generator;
+
         let body = generator.function_body(function.body.as_slice(), function.arguments.as_slice());
 
         Some(docvec![

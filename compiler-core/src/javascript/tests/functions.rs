@@ -726,3 +726,77 @@ pub fn step_two(msg: String) -> Nil {
 "#
     );
 }
+
+/// A handle expression where the return clause maps the final value.
+#[test]
+fn handle_expression_return_mapping() {
+    assert_js!(
+        r#"
+pub effect Log {
+  Emit(String) -> Nil
+}
+
+fn computation() -> String {
+  Emit("hello")
+  "done"
+}
+
+pub fn run() -> String {
+  handle computation() with Nil {
+    Log.Emit(msg, resume) -> resume(Nil, Nil)
+    Return(v) -> v
+  }
+}
+"#
+    );
+}
+
+/// A handle expression with one effect clause and a return clause.
+#[test]
+fn handle_expression_with_one_effect_clause() {
+    assert_js!(
+        r#"
+pub effect Store {
+  Get() -> Int
+}
+
+fn computation() -> Int {
+  Get()
+}
+
+pub fn run(state: Int) -> Int {
+  handle computation() with state {
+    Store.Get(resume) -> resume(state, state)
+    Return(v) -> v
+  }
+}
+"#
+    );
+}
+
+/// A handle expression with multiple effect clauses threads state correctly.
+#[test]
+fn handle_expression_with_multiple_effect_clauses() {
+    assert_js!(
+        r#"
+pub effect Store {
+  Get() -> Int
+  Set(Int) -> Nil
+}
+
+fn computation() -> Int {
+  let x = Get()
+  Set(x + 1)
+  x
+}
+
+pub fn run(state: Int) -> #(Int, Int) {
+  handle computation() with state {
+    Store.Get(resume) -> resume(state, state)
+    Store.Set(value, resume) -> resume(Nil, value)
+    Return(v) -> #(v, state)
+  }
+}
+"#
+    );
+}

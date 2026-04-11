@@ -1,0 +1,55 @@
+---
+source: compiler-core/src/javascript/tests/functions.rs
+expression: "\npub effect Store {\n  Get() -> Int\n  Set(Int) -> Nil\n}\n\nfn computation() -> Int {\n  let x = Get()\n  Set(x + 1)\n  x\n}\n\npub fn run(state: Int) -> #(Int, Int) {\n  handle computation() with state {\n    Store.Get(resume) -> resume(state, state)\n    Store.Set(value, resume) -> resume(Nil, value)\n    Return(v) -> #(v, state)\n  }\n}\n"
+snapshot_kind: text
+---
+----- SOURCE CODE
+
+pub effect Store {
+  Get() -> Int
+  Set(Int) -> Nil
+}
+
+fn computation() -> Int {
+  let x = Get()
+  Set(x + 1)
+  x
+}
+
+pub fn run(state: Int) -> #(Int, Int) {
+  handle computation() with state {
+    Store.Get(resume) -> resume(state, state)
+    Store.Set(value, resume) -> resume(Nil, value)
+    Return(v) -> #(v, state)
+  }
+}
+
+
+----- COMPILED JAVASCRIPT
+function* computation() {
+  let x = yield { type: "Store.Get", args: [] };
+  yield { type: "Store.Set", args: [x + 1] };
+  return x;
+}
+
+export function run(state) {
+  return (() => { const gen = computation();
+    const loop = (state, $next) => {
+      const $r = gen.next($next);
+      if ($r.done) {
+        const v = $r.value;
+        return [v, state];
+      }
+      const $effect = $r.value;
+      if ($effect.type === "Store.Get") {
+        const resume = ($res, $ns) => loop($ns, $res);
+        return resume(state, state);
+      }
+      if ($effect.type === "Store.Set") {
+        const value = $effect.args[0];
+        const resume = ($res, $ns) => loop($ns, $res);
+        return resume(undefined, value);
+      }
+    };
+    return loop(state, undefined); })();
+}

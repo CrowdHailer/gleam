@@ -1,0 +1,47 @@
+---
+source: compiler-core/src/javascript/tests/functions.rs
+expression: "\npub effect Log {\n  Emit(String) -> Nil\n}\n\nfn computation() -> String {\n  Emit(\"hello\")\n  \"done\"\n}\n\npub fn run() -> String {\n  handle computation() with Nil {\n    Log.Emit(msg, resume) -> resume(Nil, Nil)\n    Return(v) -> v\n  }\n}\n"
+snapshot_kind: text
+---
+----- SOURCE CODE
+
+pub effect Log {
+  Emit(String) -> Nil
+}
+
+fn computation() -> String {
+  Emit("hello")
+  "done"
+}
+
+pub fn run() -> String {
+  handle computation() with Nil {
+    Log.Emit(msg, resume) -> resume(Nil, Nil)
+    Return(v) -> v
+  }
+}
+
+
+----- COMPILED JAVASCRIPT
+function* computation() {
+  yield { type: "Log.Emit", args: ["hello"] };
+  return "done";
+}
+
+export function run() {
+  return (() => { const gen = computation();
+    const loop = (state, $next) => {
+      const $r = gen.next($next);
+      if ($r.done) {
+        const v = $r.value;
+        return v;
+      }
+      const $effect = $r.value;
+      if ($effect.type === "Log.Emit") {
+        const msg = $effect.args[0];
+        const resume = ($res, $ns) => loop($ns, $res);
+        return resume(undefined, undefined);
+      }
+    };
+    return loop(undefined, undefined); })();
+}

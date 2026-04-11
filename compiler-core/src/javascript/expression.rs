@@ -176,6 +176,13 @@ pub(crate) struct Generator<'module, 'ast> {
     /// This means we can stop code generation for all the following statements
     /// in the same block!
     pub let_assert_always_panics: bool,
+
+    /// True when we are inside a JavaScript generator function (`function*`).
+    /// Only in this context should calls to other effectful functions be emitted
+    /// as `yield*` delegations.  Arrow functions (including handle IIFEs and
+    /// anonymous Gleam `fn` literals) are never generators, so `yield*` must
+    /// not be emitted inside them.
+    pub in_generator_context: bool,
 }
 
 impl<'module, 'a> Generator<'module, 'a> {
@@ -214,6 +221,7 @@ impl<'module, 'a> Generator<'module, 'a> {
             scope_position: Position::Tail,
             statement_level: Vec::new(),
             let_assert_always_panics: false,
+            in_generator_context: false,
         }
     }
 
@@ -391,9 +399,13 @@ impl<'module, 'a> Generator<'module, 'a> {
                 panic!("invalid expressions should not reach code generation")
             }
 
-            TypedExpr::Handle { .. } => {
-                panic!("handle expressions are not yet supported in the JavaScript backend (Phase 3)")
-            }
+            TypedExpr::Handle {
+                computation,
+                initial_state,
+                effect_clauses,
+                return_clause,
+                ..
+            } => self.handle_expression(computation, initial_state, effect_clauses, return_clause),
         };
         if expression.handles_own_return() {
             document
@@ -1550,7 +1562,7 @@ impl<'module, 'a> Generator<'module, 'a> {
                 });
                 let arguments = call_arguments(arguments);
                 let call = docvec![fun, arguments];
-                if delegate {
+                if delegate && self.in_generator_context {
                     self.wrap_return(docvec!["yield* ", call])
                 } else {
                     self.wrap_return(call)
@@ -1571,9 +1583,13 @@ impl<'module, 'a> Generator<'module, 'a> {
         }
 
         // This is a new function so track that so that we don't
-        // mistakenly trigger tail call optimisation
+        // mistakenly trigger tail call optimisation.
+        // Arrow/anonymous functions are never generators, so yield* must not
+        // be emitted inside them.
         let mut current_function = CurrentFunction::Anonymous;
         std::mem::swap(&mut self.current_function, &mut current_function);
+        let outer_in_generator_context =
+            std::mem::replace(&mut self.in_generator_context, false);
 
         // Generate the function body
         let result = self.statements(body);
@@ -1583,6 +1599,7 @@ impl<'module, 'a> Generator<'module, 'a> {
         self.scope_position = scope_position;
         self.current_scope_vars = scope;
         std::mem::swap(&mut self.current_function, &mut current_function);
+        self.in_generator_context = outer_in_generator_context;
 
         docvec![
             docvec![
@@ -1595,6 +1612,225 @@ impl<'module, 'a> Generator<'module, 'a> {
             .append(break_("", " "))
             .group(),
             "}",
+        ]
+    }
+
+    /// Compile a `handle computation() with initial_state { ... }` expression into
+    /// a stateful runner-loop IIFE:
+    ///
+    /// ```js
+    /// (() => {
+    ///   const gen = <computation>;
+    ///   const loop = (state, $next) => {
+    ///     const $r = gen.next($next);
+    ///     if ($r.done) { const <v> = $r.value; return <return_body>; }
+    ///     const $effect = $r.value;
+    ///     if ($effect.type === "Effect.Op") {
+    ///       const arg = $effect.args[0];
+    ///       const resume = ($res, $ns) => loop($ns, $res);
+    ///       return <clause_body>;
+    ///     }
+    ///   };
+    ///   return loop(<initial_state>, undefined);
+    /// })()
+    /// ```
+    fn handle_expression(
+        &mut self,
+        computation: &'a TypedExpr,
+        initial_state: &'a TypedExpr,
+        effect_clauses: &'a [TypedEffectClause],
+        return_clause: &'a TypedEffectReturnClause,
+    ) -> Document<'a> {
+        // Enter a new function scope for the IIFE.
+        // The IIFE is an arrow function — not a generator — so yield* must not
+        // be emitted inside it.
+        let outer_function_position =
+            std::mem::replace(&mut self.function_position, Position::Tail);
+        let outer_scope_position =
+            std::mem::replace(&mut self.scope_position, Position::Tail);
+        let outer_scope_vars = self.current_scope_vars.clone();
+        let outer_statement_level = std::mem::take(&mut self.statement_level);
+        let mut current_fn = CurrentFunction::Anonymous;
+        std::mem::swap(&mut self.current_function, &mut current_fn);
+        let outer_in_generator_context =
+            std::mem::replace(&mut self.in_generator_context, false);
+
+        // Fresh variable names to avoid shadowing user-defined names.
+        let gen_var = self.next_local_var(&"gen".into());
+        let loop_var = self.next_local_var(&"loop".into());
+
+        // Compile computation (generator call) — not in tail position.
+        let computation_doc = self.not_in_tail_position(Some(Ordering::Loose), |this| {
+            this.wrap_expression(computation)
+        });
+
+        // Compile initial state — not in tail position.
+        let initial_state_doc = self.not_in_tail_position(Some(Ordering::Loose), |this| {
+            this.wrap_expression(initial_state)
+        });
+
+        // `state` is the convention name for the current handler state parameter.
+        // Clause bodies can reference it as a free variable; the generated loop
+        // function provides it.
+        let _ = self.current_scope_vars.insert("state".into(), 0);
+
+        // Generate the loop arrow-function body.
+        let loop_body = self.gen_handle_loop_body(
+            gen_var.clone(),
+            loop_var.clone(),
+            effect_clauses,
+            return_clause,
+        );
+
+        // Assemble the IIFE body.
+        let iife_body = docvec![
+            "const ",
+            gen_var,
+            " = ",
+            computation_doc,
+            ";",
+            line(),
+            "const ",
+            loop_var.clone(),
+            " = (state, $next) => {",
+            docvec![line(), loop_body].nest(INDENT),
+            line(),
+            "};",
+            line(),
+            "return ",
+            loop_var,
+            "(",
+            initial_state_doc,
+            ", undefined);"
+        ];
+
+        let iife = immediately_invoked_function_expression_document(iife_body);
+
+        // Restore outer state.
+        self.current_scope_vars = outer_scope_vars;
+        self.function_position = outer_function_position;
+        self.scope_position = outer_scope_position;
+        self.statement_level = outer_statement_level;
+        std::mem::swap(&mut self.current_function, &mut current_fn);
+        self.in_generator_context = outer_in_generator_context;
+
+        iife
+    }
+
+    /// Generate the body of the runner loop for a handle expression.
+    fn gen_handle_loop_body(
+        &mut self,
+        gen_var: EcoString,
+        loop_var: EcoString,
+        effect_clauses: &'a [TypedEffectClause],
+        return_clause: &'a TypedEffectReturnClause,
+    ) -> Document<'a> {
+        // Advance the generator.
+        let advance = docvec!["const $r = ", gen_var, ".next($next);"];
+
+        // if ($r.done) { const <value> = $r.value; return <body>; }
+        let done_block = {
+            let rc_outer_vars = self.current_scope_vars.clone();
+            let rc_outer_stmts = std::mem::take(&mut self.statement_level);
+
+            let value_js = self.next_local_var(&return_clause.value_name);
+
+            self.scope_position = Position::Tail;
+            self.function_position = Position::Tail;
+            let body_doc = self.expression(&return_clause.body);
+            let body_doc = self.add_statement_level(body_doc);
+
+            self.current_scope_vars = rc_outer_vars;
+            self.statement_level = rc_outer_stmts;
+
+            docvec![
+                "if ($r.done) {",
+                docvec![
+                    line(),
+                    "const ",
+                    value_js,
+                    " = $r.value;",
+                    line(),
+                    body_doc
+                ]
+                .nest(INDENT),
+                line(),
+                "}"
+            ]
+        };
+
+        if effect_clauses.is_empty() {
+            return docvec![advance, line(), done_block];
+        }
+
+        // const $effect = $r.value;
+        let get_effect = docvec!["const $effect = $r.value;"];
+
+        // One `if` block per effect clause.
+        let clause_docs: Vec<Document<'a>> = effect_clauses
+            .iter()
+            .map(|clause| {
+                let outer_vars = self.current_scope_vars.clone();
+                let outer_stmts = std::mem::take(&mut self.statement_level);
+
+                let type_str =
+                    eco_format!("{}.{}", clause.effect_name, clause.operation_name);
+
+                let mut inner: Vec<Document<'a>> = Vec::new();
+
+                // Destructure operation arguments from $effect.args.
+                for (i, arg_name) in clause.argument_names.iter().enumerate() {
+                    let arg_js = self.next_local_var(arg_name);
+                    inner.push(docvec![
+                        "const ",
+                        arg_js,
+                        " = $effect.args[",
+                        eco_format!("{i}"),
+                        "];"
+                    ]);
+                }
+
+                // resume closure: const resume = ($res, $ns) => loop($ns, $res);
+                let resume_js = self.next_local_var(&clause.resume_name);
+                inner.push(docvec![
+                    "const ",
+                    resume_js,
+                    " = ($res, $ns) => ",
+                    loop_var.clone(),
+                    "($ns, $res);"
+                ]);
+
+                // Clause body in tail position.
+                self.scope_position = Position::Tail;
+                self.function_position = Position::Tail;
+                let body_doc = self.expression(&clause.body);
+                let body_doc = self.add_statement_level(body_doc);
+                inner.push(body_doc);
+
+                self.current_scope_vars = outer_vars;
+                self.statement_level = outer_stmts;
+
+                docvec![
+                    "if ($effect.type === \"",
+                    type_str,
+                    "\") {",
+                    docvec![line(), join(inner, line())].nest(INDENT),
+                    line(),
+                    "}"
+                ]
+            })
+            .collect();
+
+        let clauses = join(clause_docs, line());
+
+        docvec![
+            advance,
+            line(),
+            done_block,
+            line(),
+            get_effect,
+            line(),
+            clauses
         ]
     }
 
