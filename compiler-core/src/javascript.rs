@@ -13,7 +13,7 @@ use num_traits::ToPrimitive;
 use crate::build::Target;
 use crate::build::package_compiler::StdlibPackage;
 use crate::codegen::TypeScriptDeclarations;
-use crate::type_::{PRELUDE_MODULE_NAME, RecordAccessor};
+use crate::type_::{PRELUDE_MODULE_NAME, RecordAccessor, Type};
 use crate::{
     ast::{Import, *},
     docvec,
@@ -808,10 +808,31 @@ impl<'a> Generator<'a> {
             }
         };
 
-        let head = if function.publicity.is_private() {
-            "function "
-        } else {
-            "export function "
+        // Check whether the function has a non-empty effect row.  If so it
+        // must be emitted as a JavaScript generator (`function*`) so that
+        // effect calls can later `yield` suspension objects.
+        // A function is a generator if it has concrete (named) effects in its
+        // row.  Open row variables (var: Some(_)) on pure recursive functions
+        // are *not* treated as effects for code-generation purposes — they are
+        // just type-inference artefacts from the preregistered open row.
+        let is_generator = self
+            .module
+            .type_info
+            .values
+            .get(name.as_str())
+            .is_some_and(|vc| {
+                if let Type::Fn { effects, .. } = vc.type_.as_ref() {
+                    !effects.effects.is_empty()
+                } else {
+                    false
+                }
+            });
+
+        let head = match (function.publicity.is_private(), is_generator) {
+            (true, false) => "function ",
+            (true, true) => "function* ",
+            (false, false) => "export function ",
+            (false, true) => "export function* ",
         };
 
         let body = generator.function_body(function.body.as_slice(), function.arguments.as_slice());

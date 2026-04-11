@@ -1,0 +1,16 @@
+---
+source: compiler-core/src/javascript/tests/functions.rs
+expression: "\npub fn add(x: Int, y: Int) -> Int {\n  x + y\n}\n"
+snapshot_kind: text
+---
+----- SOURCE CODE
+
+pub fn add(x: Int, y: Int) -> Int {
+  x + y
+}
+
+
+----- COMPILED JAVASCRIPT
+export function add(x, y) {
+  return x + y;
+}

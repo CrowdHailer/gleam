@@ -1,6 +1,7 @@
 ---
 source: compiler-core/src/javascript/tests/functions.rs
 expression: "pub fn main(f, _) {\n  f()\n  main(f, 1)\n}\n"
+snapshot_kind: text
 ---
 ----- SOURCE CODE
 pub fn main(f, _) {

@@ -621,3 +621,51 @@ pub fn main() {
 "
     );
 }
+
+/// An effectful public function is emitted as `export function*`.
+#[test]
+fn effectful_function_is_generator() {
+    assert_js!(
+        r#"
+pub effect Store(a) {
+  Get() -> a
+}
+
+pub fn fetch() -> Int {
+  Get()
+}
+"#
+    );
+}
+
+/// A pure function is still emitted as a plain `function`.
+#[test]
+fn pure_function_is_not_generator() {
+    assert_js!(
+        r#"
+pub fn add(x: Int, y: Int) -> Int {
+  x + y
+}
+"#
+    );
+}
+
+/// A private effectful function is emitted as `function*` (no `export`).
+#[test]
+fn private_effectful_function_is_generator() {
+    assert_js!(
+        r#"
+pub effect Log {
+  Emit(String) -> Nil
+}
+
+fn log_something(msg: String) -> Nil {
+  Emit(msg)
+}
+
+pub fn run() -> Nil {
+  log_something("hi")
+}
+"#
+    );
+}

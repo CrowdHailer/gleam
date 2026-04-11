@@ -1,0 +1,28 @@
+---
+source: compiler-core/src/javascript/tests/functions.rs
+expression: "\npub effect Log {\n  Emit(String) -> Nil\n}\n\nfn log_something(msg: String) -> Nil {\n  Emit(msg)\n}\n\npub fn run() -> Nil {\n  log_something(\"hi\")\n}\n"
+snapshot_kind: text
+---
+----- SOURCE CODE
+
+pub effect Log {
+  Emit(String) -> Nil
+}
+
+fn log_something(msg: String) -> Nil {
+  Emit(msg)
+}
+
+pub fn run() -> Nil {
+  log_something("hi")
+}
+
+
+----- COMPILED JAVASCRIPT
+function* log_something(msg) {
+  return Emit(msg);
+}
+
+export function* run() {
+  return log_something("hi");
+}

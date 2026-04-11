@@ -33,7 +33,7 @@ Tasks are ordered by dependency. Each is self-contained and testable in isolatio
 
 ### Phase 3: JavaScript Code Generation
 
-- [ ] **3.1** Emit `function*` instead of `function` for any Gleam function with a non-empty effect row in `compiler-core/src/javascript.rs`
+- [x] **3.1** Emit `function*` instead of `function` for any Gleam function with a non-empty effect row in `compiler-core/src/javascript.rs`
 - [ ] **3.2a** Translate effect calls into `yield { type: 'EffectName.Operation', ... }` statements
 - [ ] **3.2b** Translate calls to other effectful functions to use `yield*` delegation
 - [ ] **3.3** Translate `HandleExpression` into a stateful runner loop: call `.next()`, match yielded objects, build `resume` closures, thread state
