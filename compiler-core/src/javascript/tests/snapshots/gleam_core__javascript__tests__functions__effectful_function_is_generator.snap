@@ -1,5 +1,6 @@
 ---
 source: compiler-core/src/javascript/tests/functions.rs
+assertion_line: 628
 expression: "\npub effect Store(a) {\n  Get() -> a\n}\n\npub fn fetch() -> Int {\n  Get()\n}\n"
 snapshot_kind: text
 ---
@@ -16,5 +17,5 @@ pub fn fetch() -> Int {
 
 ----- COMPILED JAVASCRIPT
 export function* fetch() {
-  return Get();
+  return yield { type: "Store.Get", args: [] };
 }

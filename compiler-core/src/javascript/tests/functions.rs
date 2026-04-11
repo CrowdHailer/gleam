@@ -669,3 +669,19 @@ pub fn run() -> Nil {
 "#
     );
 }
+
+/// An effect operation with multiple arguments emits all args in the args array.
+#[test]
+fn effect_operation_with_multiple_args() {
+    assert_js!(
+        r#"
+pub effect Http {
+  Request(String, Int) -> String
+}
+
+pub fn call(url: String, port: Int) -> String {
+  Request(url, port)
+}
+"#
+    );
+}

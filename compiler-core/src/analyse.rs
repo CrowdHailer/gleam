@@ -796,6 +796,7 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
             location,
             implementations,
             purity,
+            effect_name: None,
         };
 
         // Register with the inferred type (which carries the correct effect row)
@@ -1682,6 +1683,7 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
             location: *location,
             implementations: *implementations,
             purity: *purity,
+            effect_name: None,
         };
         environment.insert_variable(
             name.clone(),
@@ -1778,6 +1780,7 @@ impl<'a, A> ModuleAnalyzer<'a, A> {
                 location: operation.location,
                 implementations: Implementations::supporting_all(),
                 purity: Purity::Impure,
+                effect_name: Some(effect_name.clone()),
             };
 
             environment.insert_variable(
@@ -2082,6 +2085,7 @@ fn generalise_function(
         location,
         implementations,
         purity,
+        effect_name: None,
     };
     environment.insert_variable(
         name.clone(),

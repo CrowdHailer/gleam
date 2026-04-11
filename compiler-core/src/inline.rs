@@ -2008,6 +2008,7 @@ impl InlinableValueConstructor {
                     external_erlang: None,
                     external_javascript: None,
                     purity: Purity::Unknown,
+                    effect_name: None,
                 }
             }
             InlinableValueConstructor::Record { name, module } => ValueConstructorVariant::Record {

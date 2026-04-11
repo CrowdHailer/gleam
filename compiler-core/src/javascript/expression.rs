@@ -1474,6 +1474,40 @@ impl<'module, 'a> Generator<'module, 'a> {
                 docs.to_doc()
             }
 
+            // Effect operation call: emit `yield { type: "EffectName.OpName", args: [...] }`
+            TypedExpr::Var {
+                constructor:
+                    ValueConstructor {
+                        variant:
+                            ValueConstructorVariant::ModuleFn {
+                                effect_name: Some(effect_name),
+                                name: op_name,
+                                ..
+                            },
+                        ..
+                    },
+                ..
+            } => {
+                let type_key = eco_format!("{}.{}", effect_name, op_name);
+                let args_array = if arguments.is_empty() {
+                    "[]".to_doc()
+                } else {
+                    let elems = Itertools::intersperse(arguments.into_iter(), break_(",", ", "))
+                        .collect_vec()
+                        .to_doc();
+                    docvec!["[", docvec![break_("", ""), elems].nest(INDENT), break_(",", ""), "]"]
+                        .group()
+                };
+                let yield_expr = docvec![
+                    "yield { type: \"",
+                    type_key.to_doc(),
+                    "\", args: ",
+                    args_array,
+                    " }"
+                ];
+                self.wrap_return(yield_expr)
+            }
+
             TypedExpr::Int { .. }
             | TypedExpr::Float { .. }
             | TypedExpr::String { .. }

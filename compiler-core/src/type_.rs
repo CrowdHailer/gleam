@@ -783,6 +783,10 @@ pub enum ValueConstructorVariant {
         external_erlang: Option<(EcoString, EcoString)>,
         external_javascript: Option<(EcoString, EcoString)>,
         purity: Purity,
+        /// If this function is an effect operation, the name of the parent effect.
+        /// `None` for regular functions.
+        #[serde(default)]
+        effect_name: Option<EcoString>,
     },
 
     /// A constructor for a custom type

@@ -543,6 +543,7 @@ fn module_fn_value() {
                         can_run_on_javascript: true,
                     },
                     purity: Purity::Pure,
+                    effect_name: None,
                 },
             },
         )]
@@ -599,6 +600,7 @@ fn deprecated_module_fn_value() {
                         can_run_on_javascript: true,
                     },
                     purity: Purity::Pure,
+                    effect_name: None,
                 },
             },
         )]
@@ -653,6 +655,7 @@ fn private_module_fn_value() {
                         can_run_on_javascript: true,
                     },
                     purity: Purity::Pure,
+                    effect_name: None,
                 },
             },
         )]
@@ -709,6 +712,7 @@ fn module_fn_value_regression() {
                         can_run_on_javascript: true,
                     },
                     purity: Purity::TrustedPure,
+                    effect_name: None,
                 },
             },
         )]
@@ -764,6 +768,7 @@ fn module_fn_value_with_field_map() {
                         can_run_on_javascript: true,
                     },
                     purity: Purity::Pure,
+                    effect_name: None,
                 },
             },
         )]
@@ -1538,6 +1543,7 @@ fn module_fn_value_with_external_implementations() {
                         can_run_on_javascript: true,
                     },
                     purity: Purity::Impure,
+                    effect_name: None,
                 },
             },
         )]
@@ -1619,6 +1625,7 @@ fn internal_module_fn() {
                         can_run_on_javascript: true,
                     },
                     purity: Purity::Unknown,
+                    effect_name: None,
                 },
             },
         )]
@@ -1679,6 +1686,7 @@ fn internal_annotated_module_fn() {
                         can_run_on_javascript: true,
                     },
                     purity: Purity::Impure,
+                    effect_name: None,
                 },
             },
         )]

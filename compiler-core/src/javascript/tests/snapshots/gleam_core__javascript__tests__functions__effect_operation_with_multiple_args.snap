@@ -1,0 +1,20 @@
+---
+source: compiler-core/src/javascript/tests/functions.rs
+expression: "\npub effect Http {\n  Request(String, Int) -> String\n}\n\npub fn call(url: String, port: Int) -> String {\n  Request(url, port)\n}\n"
+snapshot_kind: text
+---
+----- SOURCE CODE
+
+pub effect Http {
+  Request(String, Int) -> String
+}
+
+pub fn call(url: String, port: Int) -> String {
+  Request(url, port)
+}
+
+
+----- COMPILED JAVASCRIPT
+export function* call(url, port) {
+  return yield { type: "Http.Request", args: [url, port] };
+}
