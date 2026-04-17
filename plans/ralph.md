@@ -41,7 +41,7 @@ Tasks are ordered by dependency. Each is self-contained and testable in isolatio
 
 ### Phase 4: Erlang Code Generation
 
-- [ ] **4.1** Decide and document strategy: BEAM processes vs. CPS (update `plans/add-effects/plan.md` with decision)
+- [x] **4.1** Decide and document strategy: BEAM processes vs. CPS (update `plans/add-effects/plan.md` with decision) — progress: `plans/add-effects/ERLANG_STRATEGY.md`
 - [ ] **4.2a** *(Process strategy)* Compile `handle` block into a parent process; spawn computation as linked child
 - [ ] **4.2b** *(Process strategy)* Compile effect calls into `send`/`receive` pairs; `resume` closure sends resolution back to child
 - [ ] **4.3** *(CPS strategy, if chosen)* Add implicit continuation parameter to all effectful Erlang functions and rewrite AST accordingly
